@@ -1,8 +1,8 @@
-import { db } from "@/lib/db";
+import { pool } from "@/lib/db";
 
 export async function GET() {
   try {
-    const result = await db.query(
+    const result = await pool.query(
       "SELECT current_database() AS database, current_user AS user, NOW() AS time"
     );
 

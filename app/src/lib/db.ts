@@ -1,15 +1,19 @@
+import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import * as schema from "@/db/schema";
 
 const globalForDb = globalThis as unknown as {
-  dbPool: Pool | undefined;
+  pool: Pool | undefined;
 };
 
-export const db =
-  globalForDb.dbPool ??
+export const pool =
+  globalForDb.pool ??
   new Pool({
     connectionString: process.env.DATABASE_URL,
   });
 
 if (process.env.NODE_ENV !== "production") {
-  globalForDb.dbPool = db;
+  globalForDb.pool = pool;
 }
+
+export const db = drizzle(pool, { schema });
