@@ -1,69 +1,395 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import {
+  ArrowRight,
+  CalendarDays,
+  Clock3,
+} from "lucide-react";
+
+import Link from "next/link";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import type {
+  CalendarOccurrence,
+} from "@/lib/calendar-types";
+
+const TIME_ZONE = "Africa/Johannesburg";
+
+function dayKey(value: string | Date) {
+  const parts = new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    },
+  ).formatToParts(new Date(value));
+
+  const get = (type: string) =>
+    parts.find((part) => part.type === type)
+      ?.value ?? "";
+
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat(
+    "en-ZA",
+    {
+      timeZone: TIME_ZONE,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    },
+  ).format(new Date(value));
+}
+
+function formatFullDate(value: Date) {
+  return new Intl.DateTimeFormat(
+    "en-ZA",
+    {
+      timeZone: TIME_ZONE,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    },
+  ).format(value);
+}
+
+function formatShortDate(value: string) {
+  return new Intl.DateTimeFormat(
+    "en-ZA",
+    {
+      timeZone: TIME_ZONE,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    },
+  ).format(new Date(value));
+}
+
+function greeting() {
+  const hour = Number(
+    new Intl.DateTimeFormat(
+      "en-ZA",
+      {
+        timeZone: TIME_ZONE,
+        hour: "2-digit",
+        hour12: false,
+      },
+    ).format(new Date()),
+  );
+
+  if (hour < 12) {
+    return "Good morning";
+  }
+
+  if (hour < 18) {
+    return "Good afternoon";
+  }
+
+  return "Good evening";
+}
+
+function getPersonColor(
+  event: CalendarOccurrence,
+) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    event.participants[0]?.color ??
+    "#94A3B8"
+  );
+}
+
+function EventCard({
+  event,
+  upcoming = false,
+}: {
+  event: CalendarOccurrence;
+  upcoming?: boolean;
+}) {
+  const personColor = getPersonColor(event);
+
+  return (
+    <div
+      className="dashboard-event-card"
+      style={
+        {
+          "--person-color": personColor,
+        } as React.CSSProperties
+      }
+    >
+      <div className="dashboard-event-time">
+        {upcoming ? (
+          <span className="event-date-label">
+            {formatShortDate(
+              event.occurrenceStartAt,
+            )}
+          </span>
+        ) : event.allDay ? (
+          <span>All day</span>
+        ) : (
+          <>
+            <Clock3 size={14} />
+            <span>
+              {formatTime(
+                event.occurrenceStartAt,
+              )}
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="dashboard-event-body">
+        <strong>{event.title}</strong>
+
+        {upcoming && !event.allDay && (
+          <span className="dashboard-event-secondary">
+            {formatTime(
+              event.occurrenceStartAt,
+            )}
+          </span>
+        )}
+
+        {event.participants.length > 0 && (
+          <div className="dashboard-participants">
+            {event.participants.map(
+              (participant) => (
+                <span
+                  key={participant.id}
+                  className="dashboard-person"
+                >
+                  <span
+                    className="person-dot"
+                    style={{
+                      background:
+                        participant.color,
+                    }}
+                  />
+
+                  {participant.name}
+                </span>
+              ),
+            )}
+
+            {event.recurring && (
+              <span className="recurring-label">
+                Repeats
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const [events, setEvents] = useState<
+    CalendarOccurrence[]
+  >([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(start);
+        end.setDate(end.getDate() + 30);
+
+        const response = await fetch(
+          `/api/events?start=${encodeURIComponent(
+            start.toISOString(),
+          )}&end=${encodeURIComponent(
+            end.toISOString(),
+          )}`,
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Unable to load calendar",
+          );
+        }
+
+        const data = await response.json();
+
+        setEvents(data.items ?? []);
+      } catch (loadError) {
+        console.error(loadError);
+
+        setError(
+          "The calendar could not be loaded.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void load();
+  }, []);
+
+  const todayKey = dayKey(new Date());
+
+  const today = useMemo(
+    () =>
+      events.filter(
+        (event) =>
+          dayKey(
+            event.occurrenceStartAt,
+          ) === todayKey,
+      ),
+    [events, todayKey],
+  );
+
+  const upcoming = useMemo(
+    () =>
+      events
+        .filter(
+          (event) =>
+            dayKey(
+              event.occurrenceStartAt,
+            ) > todayKey,
+        )
+        .slice(0, 8),
+    [events, todayKey],
+  );
+
+  return (
+    <div className="page dashboard-page">
+      <header className="dashboard-header">
+        <div>
+          <p className="eyebrow">
+            {formatFullDate(new Date())}
+          </p>
+
+          <h1>{greeting()}</h1>
+
+          <p className="page-subtitle">
+            Here&apos;s what&apos;s happening
+            with the family.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <Link
+          href="/calendar"
+          className="primary-button"
+        >
+          <CalendarDays size={17} />
+          Calendar
+        </Link>
+      </header>
+
+      {error && (
+        <div className="error-banner">
+          {error}
         </div>
-      </main>
+      )}
+
+      <div className="dashboard-grid">
+        <section className="dashboard-panel">
+          <div className="panel-header">
+            <div>
+              <p className="section-label">
+                Today
+              </p>
+              <h2>
+                {today.length
+                  ? `${today.length} ${
+                      today.length === 1
+                        ? "event"
+                        : "events"
+                    }`
+                  : "A quiet day"}
+              </h2>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="skeleton-line">
+              Loading your day…
+            </div>
+          ) : today.length === 0 ? (
+            <div className="dashboard-empty">
+              <div className="empty-icon">
+                <CalendarDays size={20} />
+              </div>
+
+              <div>
+                <strong>
+                  Nothing scheduled today
+                </strong>
+                <p>
+                  Enjoy the breathing room.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="dashboard-event-list">
+              {today.map((event) => (
+                <EventCard
+                  key={event.occurrenceKey}
+                  event={event}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="dashboard-panel">
+          <div className="panel-header">
+            <div>
+              <p className="section-label">
+                Upcoming
+              </p>
+              <h2>Next on the calendar</h2>
+            </div>
+
+            <Link
+              href="/calendar"
+              className="text-link"
+            >
+              View calendar
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="skeleton-line">
+              Loading upcoming events…
+            </div>
+          ) : upcoming.length === 0 ? (
+            <div className="dashboard-empty">
+              <div>
+                <strong>
+                  Nothing coming up
+                </strong>
+              </div>
+            </div>
+          ) : (
+            <div className="dashboard-event-list">
+              {upcoming.map((event) => (
+                <EventCard
+                  key={event.occurrenceKey}
+                  event={event}
+                  upcoming
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
