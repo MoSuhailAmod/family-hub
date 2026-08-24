@@ -1,10 +1,8 @@
 import {
-  deleteEvent,
-  getEventById,
-  updateEvent,
-} from "@/lib/calendar-data";
-
-import { parseEventInput } from "@/lib/validation";
+  deleteCalendarEventService,
+  getCalendarEventService,
+  updateCalendarEventService,
+} from "@/lib/calendar-service";
 
 type RouteContext = {
   params: Promise<{
@@ -19,12 +17,12 @@ export async function GET(
   try {
     const { id } = await context.params;
 
-    const event = await getEventById(id);
+    const result = await getCalendarEventService(id);
 
-    if (!event) {
+    if (!result.success) {
       return Response.json(
         {
-          error: "Event not found",
+          error: result.error,
         },
         {
           status: 404,
@@ -33,7 +31,7 @@ export async function GET(
     }
 
     return Response.json({
-      event,
+      event: result.data,
     });
   } catch (error) {
     console.error("Failed to load event:", error);
@@ -55,38 +53,32 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-
     const body = await request.json();
 
-    const parsed = parseEventInput(body);
+    const result = await updateCalendarEventService(
+      id,
+      body,
+    );
 
-    if (!parsed.success) {
+    if (!result.success) {
+      const status =
+        result.code === "NOT_FOUND"
+          ? 404
+          : 400;
+
       return Response.json(
         {
-          error: "Validation failed",
-          details: parsed.errors,
+          error: result.error,
+          details: result.details,
         },
         {
-          status: 400,
-        },
-      );
-    }
-
-    const event = await updateEvent(id, parsed.data);
-
-    if (!event) {
-      return Response.json(
-        {
-          error: "Event not found",
-        },
-        {
-          status: 404,
+          status,
         },
       );
     }
 
     return Response.json({
-      event,
+      event: result.data,
     });
   } catch (error) {
     console.error("Failed to update event:", error);
@@ -109,12 +101,12 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    const deleted = await deleteEvent(id);
+    const result = await deleteCalendarEventService(id);
 
-    if (!deleted) {
+    if (!result.success) {
       return Response.json(
         {
-          error: "Event not found",
+          error: result.error,
         },
         {
           status: 404,

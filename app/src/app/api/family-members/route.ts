@@ -1,8 +1,8 @@
-import { listFamilyMembers } from "@/lib/calendar-data";
+import { getFamilyMembersService } from "@/lib/calendar-service";
 
 export async function GET() {
   try {
-    const items = await listFamilyMembers();
+    const items = await getFamilyMembersService();
 
     return Response.json({
       items,

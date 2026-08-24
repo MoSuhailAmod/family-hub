@@ -1,9 +1,7 @@
 import {
-  createEvent,
-  getEventsForRange,
-} from "@/lib/calendar-data";
-
-import { parseEventInput } from "@/lib/validation";
+  createCalendarEventService,
+  listCalendarEventsService,
+} from "@/lib/calendar-service";
 
 export async function GET(request: Request) {
   try {
@@ -23,17 +21,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const start = new Date(startValue);
-    const end = new Date(endValue);
+    const result = await listCalendarEventsService(
+      startValue,
+      endValue,
+    );
 
-    if (
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime()) ||
-      end <= start
-    ) {
+    if (!result.success) {
       return Response.json(
         {
-          error: "Invalid date range",
+          error: result.error,
+          details: result.details,
         },
         {
           status: 400,
@@ -41,10 +38,8 @@ export async function GET(request: Request) {
       );
     }
 
-    const items = await getEventsForRange(start, end);
-
     return Response.json({
-      items,
+      items: result.data,
     });
   } catch (error) {
     console.error("Failed to load events:", error);
@@ -64,13 +59,13 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const parsed = parseEventInput(body);
+    const result = await createCalendarEventService(body);
 
-    if (!parsed.success) {
+    if (!result.success) {
       return Response.json(
         {
-          error: "Validation failed",
-          details: parsed.errors,
+          error: result.error,
+          details: result.details,
         },
         {
           status: 400,
@@ -78,11 +73,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const event = await createEvent(parsed.data);
-
     return Response.json(
       {
-        event,
+        event: result.data,
       },
       {
         status: 201,
