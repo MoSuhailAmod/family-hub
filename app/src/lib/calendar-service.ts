@@ -4,6 +4,7 @@ import {
   getEventById,
   getEventsForRange,
   listFamilyMembers,
+  listEventCategories,
   updateEvent,
 } from "@/lib/calendar-data";
 
@@ -145,4 +146,8 @@ export async function deleteCalendarEventService(id: string) {
       id,
     },
   };
+}
+
+export async function getEventCategoriesService() {
+  return listEventCategories();
 }
