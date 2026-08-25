@@ -1,3 +1,5 @@
+import { getGoogleCalendarEvents } from "@/lib/google-calendar";
+import type { CalendarOccurrence } from "@/lib/calendar-types";
 import {
   createCalendarEventService,
   listCalendarEventsService,
@@ -38,8 +40,22 @@ export async function GET(request: Request) {
       );
     }
 
+    let googleEvents: CalendarOccurrence[] = [];
+
+    try {
+      googleEvents = await getGoogleCalendarEvents(
+        new Date(startValue),
+        new Date(endValue),
+      );
+    } catch (error) {
+      console.error(
+        "Failed to load Google Calendar events:",
+        error,
+      );
+    }
+
     return Response.json({
-      items: result.data,
+      items: [...result.data, ...googleEvents],
     });
   } catch (error) {
     console.error("Failed to load events:", error);
