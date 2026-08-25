@@ -57,6 +57,7 @@ function personColor(
 ) {
   return (
     event.participants[0]?.color ??
+    event.category?.color ??
     "#94A3B8"
   );
 }
