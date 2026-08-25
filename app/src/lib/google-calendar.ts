@@ -1,4 +1,5 @@
 import ical from "node-ical";
+import { getFamilyMembersService } from "@/lib/calendar-service";
 
 import type { CalendarOccurrence } from "@/lib/calendar-types";
 
@@ -20,11 +21,26 @@ type GoogleIcalEvent = {
   };
 };
 
+function getFamilyMemberName(
+  description?: string,
+) {
+  if (!description) {
+    return null;
+  }
+
+  const match = description.match(
+    /family_member=([^\n<]+)/i,
+  );
+
+  return match?.[1]?.trim() ?? null;
+}
+
 function toOccurrence(
   event: GoogleIcalEvent,
   start: Date,
   end: Date,
   recurring: boolean,
+  members: Awaited<ReturnType<typeof getFamilyMembersService>>,
 ): CalendarOccurrence {
   const uid = event.uid ?? `${start.getTime()}`;
 
@@ -39,7 +55,24 @@ function toOccurrence(
     categoryId: null,
     recurrenceRule: null,
     category: null,
-    participants: [],
+    participants: (() => {
+      const memberName =
+        getFamilyMemberName(event.description);
+
+      const member = members.find(
+        (item) =>
+          item.name.toLowerCase() ===
+          memberName?.toLowerCase(),
+      );
+
+      return member
+        ? [{
+            id: member.id,
+            name: member.name,
+            color: member.color,
+          }]
+        : [];
+    })(),
     occurrenceKey: `google:${uid}:${start.toISOString()}`,
     occurrenceStartAt: start.toISOString(),
     occurrenceEndAt: end.toISOString(),
@@ -76,6 +109,7 @@ export async function getGoogleCalendarEvents(
       await response.text(),
     );
 
+    const members = await getFamilyMembersService();
     const occurrences: CalendarOccurrence[] = [];
 
     for (const item of Object.values(calendar)) {
@@ -104,7 +138,7 @@ export async function getGoogleCalendarEvents(
 
           if (start < rangeEnd && end > rangeStart) {
             occurrences.push(
-              toOccurrence(event, start, end, true),
+              toOccurrence(event, start, end, true, members),
             );
           }
         }
@@ -122,6 +156,7 @@ export async function getGoogleCalendarEvents(
             event.start,
             event.end,
             false,
+            members,
           ),
         );
       }
