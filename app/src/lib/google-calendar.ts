@@ -1,5 +1,6 @@
 import ical from "node-ical";
 import { getFamilyMembersService } from "@/lib/calendar-service";
+import { getEventCategoriesService } from "@/lib/calendar-service";
 
 import type { CalendarOccurrence } from "@/lib/calendar-types";
 
@@ -35,12 +36,21 @@ function getFamilyMemberName(
   return match?.[1]?.trim() ?? null;
 }
 
+function isFamilyEvent(
+  description?: string,
+) {
+  return /family_event=true/i.test(
+    description ?? "",
+  );
+}
+
 function toOccurrence(
   event: GoogleIcalEvent,
   start: Date,
   end: Date,
   recurring: boolean,
   members: Awaited<ReturnType<typeof getFamilyMembersService>>,
+  categories: Awaited<ReturnType<typeof getEventCategoriesService>>,
 ): CalendarOccurrence {
   const uid = event.uid ?? `${start.getTime()}`;
 
@@ -52,9 +62,33 @@ function toOccurrence(
     endAt: end.toISOString(),
     allDay: event.datetype === "date",
     location: event.location ?? null,
-    categoryId: null,
+    categoryId: (() => {
+      if (!isFamilyEvent(event.description)) {
+        return null;
+      }
+
+      return categories.find(
+        (item) => item.name.toLowerCase() === "family",
+      )?.id ?? null;
+    })(),
     recurrenceRule: null,
-    category: null,
+    category: (() => {
+      if (!isFamilyEvent(event.description)) {
+        return null;
+      }
+
+      const family = categories.find(
+        (item) => item.name.toLowerCase() === "family",
+      );
+
+      return family
+        ? {
+            id: family.id,
+            name: family.name,
+            color: family.color,
+          }
+        : null;
+    })(),
     participants: (() => {
       const memberName =
         getFamilyMemberName(event.description);
@@ -110,6 +144,7 @@ export async function getGoogleCalendarEvents(
     );
 
     const members = await getFamilyMembersService();
+    const categories = await getEventCategoriesService();
     const occurrences: CalendarOccurrence[] = [];
 
     for (const item of Object.values(calendar)) {
@@ -138,7 +173,7 @@ export async function getGoogleCalendarEvents(
 
           if (start < rangeEnd && end > rangeStart) {
             occurrences.push(
-              toOccurrence(event, start, end, true, members),
+              toOccurrence(event, start, end, true, members, categories),
             );
           }
         }
@@ -157,6 +192,7 @@ export async function getGoogleCalendarEvents(
             event.end,
             false,
             members,
+            categories,
           ),
         );
       }
