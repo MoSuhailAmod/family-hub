@@ -14,18 +14,16 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CalendarOccurrence,
   FamilyMember,
 } from "@/lib/calendar-types";
+
+import type { EventClickInfo } from "@fullcalendar/react";
+
+import EventDetailsModal from "./event-details-modal";
 
 const TIME_ZONE = "Africa/Johannesburg";
 
@@ -134,8 +132,10 @@ export default function CalendarPage() {
   const [activeView, setActiveView] =
     useState("dayGridMonth");
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [selectedEvent, setSelectedEvent] =
+    useState<CalendarDisplayEvent | null>(null);
 
   useEffect(() => {
     fetch("/api/family-members")
@@ -275,6 +275,17 @@ export default function CalendarPage() {
 
   function changeView(view: string) {
     calendarApi()?.changeView(view);
+  }
+
+  function handleEventClick(
+    info: EventClickInfo,
+  ) {
+    const existing = events.find(
+      (e) => e.id === info.event.id,
+    );
+    if (existing) {
+      setSelectedEvent(existing);
+    }
   }
 
   return (
@@ -449,6 +460,7 @@ export default function CalendarPage() {
               info.end,
             );
           }}
+          eventClick={handleEventClick}
           eventContent={(info) => {
             const participants =
               info.event.extendedProps
@@ -509,6 +521,11 @@ export default function CalendarPage() {
           }}
         />
       </section>
+
+      <EventDetailsModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
     </div>
   );
 }
