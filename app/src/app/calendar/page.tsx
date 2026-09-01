@@ -18,11 +18,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CalendarOccurrence,
+  EventCategory,
   FamilyMember,
 } from "@/lib/calendar-types";
 
 import type { EventClickInfo } from "@fullcalendar/react";
 
+import CreateEventModal from "./create-event-modal";
 import EventDetailsModal from "./event-details-modal";
 
 const TIME_ZONE = "Africa/Johannesburg";
@@ -121,6 +123,13 @@ export default function CalendarPage() {
     FamilyMember[]
   >([]);
 
+  const [categories, setCategories] = useState<
+    EventCategory[]
+  >([]);
+
+  const [createEventOpen, setCreateEventOpen] =
+    useState(false);
+
   const [
     activeMemberId,
     setActiveMemberId,
@@ -153,6 +162,25 @@ export default function CalendarPage() {
       })
       .catch((memberError) => {
         console.error(memberError);
+      });
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/event-categories")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            "Unable to load event categories",
+          );
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        setCategories(data.items ?? []);
+      })
+      .catch((categoryError) => {
+        console.error(categoryError);
       });
   }, []);
 
@@ -255,6 +283,10 @@ export default function CalendarPage() {
           next: () => void;
           today: () => void;
           changeView: (view: string) => void;
+          view: {
+            activeStart: Date;
+            activeEnd: Date;
+          };
         } }
       | null;
 
@@ -288,6 +320,13 @@ export default function CalendarPage() {
     }
   }
 
+  function refreshCurrentRange() {
+    const view = calendarApi()?.view;
+    if (view) {
+      void loadEvents(view.activeStart, view.activeEnd);
+    }
+  }
+
   return (
     <div className="page calendar-page">
       <header className="calendar-header">
@@ -307,8 +346,7 @@ export default function CalendarPage() {
         <button
           className="primary-button"
           type="button"
-          disabled
-          title="Event creation is coming next"
+          onClick={() => setCreateEventOpen(true)}
         >
           <Plus size={17} />
           Add event
@@ -521,6 +559,15 @@ export default function CalendarPage() {
           }}
         />
       </section>
+
+      {createEventOpen && (
+        <CreateEventModal
+          members={members}
+          categories={categories}
+          onClose={() => setCreateEventOpen(false)}
+          onCreated={refreshCurrentRange}
+        />
+      )}
 
       <EventDetailsModal
         event={selectedEvent}
