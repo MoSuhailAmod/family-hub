@@ -592,6 +592,10 @@ export default function CalendarPage() {
           setSelectedEvent(null);
           setEditingSeriesId(seriesId);
         }}
+        onDeleted={() => {
+          setSelectedEvent(null);
+          refreshCurrentRange();
+        }}
       />
     </div>
   );
