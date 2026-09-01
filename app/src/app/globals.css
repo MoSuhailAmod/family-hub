@@ -1457,3 +1457,10 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.event-details-external-notice {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}

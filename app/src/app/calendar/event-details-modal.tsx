@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { canEditCalendarEvent } from "@/lib/calendar-edit";
 import type { CalendarOccurrence } from "@/lib/calendar-types";
 
 type CalendarDisplayEvent = {
@@ -163,6 +164,9 @@ export default function EventDetailsModal({
 
   const showAllDay = isAllDay(event);
   const multiDay = isMultiDay(event);
+  const canEdit = canEditCalendarEvent(
+    event.extendedProps.seriesId,
+  );
 
   return (
     <dialog
@@ -318,14 +322,21 @@ export default function EventDetailsModal({
           ) : null}
 
           <div className="event-details-actions">
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => onEdit(event.extendedProps.seriesId)}
-            >
-              <Pencil size={15} />
-              Edit event
-            </button>
+            {canEdit ? (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => onEdit(event.extendedProps.seriesId)}
+              >
+                <Pencil size={15} />
+                Edit event
+              </button>
+            ) : (
+              <p className="event-details-external-notice">
+                This event is managed in Google Calendar and cannot be edited
+                from Family Hub.
+              </p>
+            )}
           </div>
         </div>
       </div>
