@@ -1,6 +1,6 @@
 const JOHANNESBURG_OFFSET = "+02:00";
 
-type EventFormValues = {
+export type EventFormValues = {
   title: string;
   startDate: string;
   startTime?: string;
@@ -12,6 +12,18 @@ type EventFormValues = {
   location: string;
   description: string;
   recurrenceRule?: string | null;
+};
+
+type PersistedEventForForm = {
+  title: string;
+  startAt: string;
+  endAt: string;
+  allDay: boolean;
+  participants: Array<{ id: string }>;
+  categoryId: string | null;
+  location: string | null;
+  description: string | null;
+  recurrenceRule: string | null;
 };
 
 export type CreateEventPayload = {
@@ -38,6 +50,52 @@ function nextDate(date: string) {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + 1);
   return value.toISOString().slice(0, 10);
+}
+
+function previousDate(date: string) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() - 1);
+  return value.toISOString().slice(0, 10);
+}
+
+function johannesburgDateTimeParts(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((entry) => entry.type === type)?.value ?? "";
+
+  return {
+    date: `${part("year")}-${part("month")}-${part("day")}`,
+    time: `${part("hour")}:${part("minute")}`,
+  };
+}
+
+export function eventFormValuesFromPersistedEvent(
+  event: PersistedEventForForm,
+): EventFormValues {
+  const start = johannesburgDateTimeParts(event.startAt);
+  const end = johannesburgDateTimeParts(event.endAt);
+
+  return {
+    title: event.title,
+    startDate: start.date,
+    startTime: start.time,
+    endDate: event.allDay ? previousDate(end.date) : end.date,
+    endTime: end.time,
+    allDay: event.allDay,
+    participantIds: event.participants.map((participant) => participant.id),
+    categoryId: event.categoryId,
+    location: event.location ?? "",
+    description: event.description ?? "",
+    recurrenceRule: event.recurrenceRule,
+  };
 }
 
 export function createEventPayload(

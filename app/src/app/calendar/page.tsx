@@ -25,6 +25,7 @@ import type {
 import type { EventClickInfo } from "@fullcalendar/react";
 
 import CreateEventModal from "./create-event-modal";
+import EditEventModal from "./edit-event-modal";
 import EventDetailsModal from "./event-details-modal";
 
 const TIME_ZONE = "Africa/Johannesburg";
@@ -145,6 +146,8 @@ export default function CalendarPage() {
 
   const [selectedEvent, setSelectedEvent] =
     useState<CalendarDisplayEvent | null>(null);
+
+  const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/family-members")
@@ -569,9 +572,26 @@ export default function CalendarPage() {
         />
       )}
 
+      {editingSeriesId && (
+        <EditEventModal
+          seriesId={editingSeriesId}
+          members={members}
+          categories={categories}
+          onClose={() => setEditingSeriesId(null)}
+          onUpdated={() => {
+            setSelectedEvent(null);
+            refreshCurrentRange();
+          }}
+        />
+      )}
+
       <EventDetailsModal
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
+        onEdit={(seriesId) => {
+          setSelectedEvent(null);
+          setEditingSeriesId(seriesId);
+        }}
       />
     </div>
   );
