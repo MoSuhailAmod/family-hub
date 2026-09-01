@@ -10,10 +10,15 @@ import {
   Users,
   FileText,
   Pencil,
+  Trash2,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { canEditCalendarEvent } from "@/lib/calendar-edit";
+import {
+  canDeleteCalendarEvent,
+  deleteCalendarEvent,
+} from "@/lib/calendar-delete";
 import type { CalendarOccurrence } from "@/lib/calendar-types";
 
 type CalendarDisplayEvent = {
@@ -43,6 +48,7 @@ type Props = {
   event: CalendarDisplayEvent | null;
   onClose: () => void;
   onEdit: (seriesId: string) => void;
+  onDeleted: () => void;
 };
 
 const TIME_ZONE = "Africa/Johannesburg";
@@ -128,20 +134,28 @@ export default function EventDetailsModal({
   event,
   onClose,
   onEdit,
+  onDeleted,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const deletionInFlightRef = useRef(false);
+  const [confirmingDeletion, setConfirmingDeletion] =
+    useState(false);
+  const [deletionError, setDeletionError] = useState<string | null>(
+    null,
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !isDeleting) onClose();
     };
     dialog.addEventListener("keydown", handleKey);
     return () =>
       dialog.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  }, [isDeleting, onClose]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -167,6 +181,34 @@ export default function EventDetailsModal({
   const canEdit = canEditCalendarEvent(
     event.extendedProps.seriesId,
   );
+  const canDelete = canDeleteCalendarEvent(
+    event.extendedProps.seriesId,
+  );
+
+  async function handleDelete() {
+    if (deletionInFlightRef.current) return;
+
+    const eventToDelete = event;
+    if (!eventToDelete) return;
+
+    deletionInFlightRef.current = true;
+    setIsDeleting(true);
+    setDeletionError(null);
+
+    const result = await deleteCalendarEvent(
+      eventToDelete.extendedProps.seriesId,
+    );
+
+    deletionInFlightRef.current = false;
+    setIsDeleting(false);
+
+    if (result.success) {
+      onDeleted();
+      return;
+    }
+
+    setDeletionError(result.error);
+  }
 
   return (
     <dialog
@@ -188,6 +230,7 @@ export default function EventDetailsModal({
             type="button"
             className="event-details-close"
             onClick={onClose}
+            disabled={isDeleting}
             aria-label="Close event details"
           >
             <X size={18} />
@@ -321,12 +364,13 @@ export default function EventDetailsModal({
             </section>
           ) : null}
 
-          <div className="event-details-actions">
+          <section className="event-details-actions">
             {canEdit ? (
               <button
                 type="button"
                 className="primary-button"
                 onClick={() => onEdit(event.extendedProps.seriesId)}
+                disabled={isDeleting}
               >
                 <Pencil size={15} />
                 Edit event
@@ -337,7 +381,69 @@ export default function EventDetailsModal({
                 from Family Hub.
               </p>
             )}
-          </div>
+
+            {deletionError && (
+              <p className="event-details-delete-error" role="alert">
+                {deletionError}
+              </p>
+            )}
+
+            {canDelete ? (
+              confirmingDeletion ? (
+                <div
+                  className="event-details-delete-confirmation"
+                  role="alertdialog"
+                  aria-labelledby="delete-event-title"
+                  aria-describedby="delete-event-description"
+                >
+                  <h3 id="delete-event-title">Delete event?</h3>
+                  <p id="delete-event-description">
+                    Delete “{event.title}”? This deletion is permanent from
+                    Family Hub.
+                    {event.extendedProps.recurring && (
+                      <> This deletes the entire series.</>
+                    )}
+                  </p>
+                  <div className="event-details-delete-buttons">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setConfirmingDeletion(false)}
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button"
+                      onClick={() => void handleDelete()}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? "Deleting…" : "Delete event"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="event-details-delete-button"
+                  onClick={() => {
+                    setDeletionError(null);
+                    setConfirmingDeletion(true);
+                  }}
+                  disabled={isDeleting}
+                >
+                  <Trash2 size={16} />
+                  Delete event
+                </button>
+              )
+            ) : (
+              <p className="event-details-external-notice">
+                This event is managed in Google Calendar and cannot be
+                deleted from Family Hub.
+              </p>
+            )}
+          </section>
         </div>
       </div>
     </dialog>

@@ -1464,3 +1464,69 @@ a {
   font-size: 13px;
   line-height: 1.45;
 }
+
+.event-details-delete-button,
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 14px;
+  border: 1px solid #b42318;
+  border-radius: 8px;
+  background: #b42318;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.event-details-delete-button {
+  background: transparent;
+  color: #b42318;
+}
+
+.event-details-delete-confirmation {
+  padding: 16px;
+  border: 1px solid #fecdca;
+  border-radius: 10px;
+  background: #fffbfa;
+}
+
+.event-details-delete-confirmation h3,
+.event-details-delete-confirmation p {
+  margin: 0;
+}
+
+.event-details-delete-confirmation h3 {
+  color: #912018;
+  font-size: 15px;
+}
+
+.event-details-delete-confirmation p {
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.event-details-delete-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.event-details-delete-error {
+  margin: 0 0 12px;
+  color: #b42318;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.event-details-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
