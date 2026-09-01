@@ -9,6 +9,7 @@ import {
   Clock,
   Users,
   FileText,
+  Pencil,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -40,6 +41,7 @@ type CalendarDisplayEvent = {
 type Props = {
   event: CalendarDisplayEvent | null;
   onClose: () => void;
+  onEdit: (seriesId: string) => void;
 };
 
 const TIME_ZONE = "Africa/Johannesburg";
@@ -124,6 +126,7 @@ function allDayInclusiveEnd(
 export default function EventDetailsModal({
   event,
   onClose,
+  onEdit,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -296,7 +299,7 @@ export default function EventDetailsModal({
                 <span>Recurrence</span>
               </div>
               <p className="event-details-recurrence">
-                Recurring event
+                Recurring event — edits apply to the entire series.
               </p>
             </section>
           ) : null}
@@ -313,6 +316,17 @@ export default function EventDetailsModal({
               </p>
             </section>
           ) : null}
+
+          <div className="event-details-actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => onEdit(event.extendedProps.seriesId)}
+            >
+              <Pencil size={15} />
+              Edit event
+            </button>
+          </div>
         </div>
       </div>
     </dialog>

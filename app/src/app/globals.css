@@ -1297,6 +1297,24 @@ a {
   white-space: pre-wrap;
 }
 
+.event-details-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.edit-series-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 /* Create calendar event modal */
 .create-event-backdrop {
   position: fixed;

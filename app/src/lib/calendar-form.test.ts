@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createEventPayload } from "./calendar-form";
+import {
+  createEventPayload,
+  eventFormValuesFromPersistedEvent,
+} from "./calendar-form";
 
 test("creates timed event timestamps in Africa/Johannesburg", () => {
   const result = createEventPayload({
@@ -50,6 +53,35 @@ test("uses an exclusive next-day end for an all-day event", () => {
 
   assert.equal(result.data.startAt, "2026-09-23T22:00:00.000Z");
   assert.equal(result.data.endAt, "2026-09-24T22:00:00.000Z");
+});
+
+test("prefills all-day edits with Johannesburg dates and an inclusive end", () => {
+  assert.deepEqual(
+    eventFormValuesFromPersistedEvent({
+      title: "Heritage Day",
+      startAt: "2026-09-23T22:00:00.000Z",
+      endAt: "2026-09-25T22:00:00.000Z",
+      allDay: true,
+      participants: [{ id: "member-1" }],
+      categoryId: "category-1",
+      location: "Home",
+      description: "Braai",
+      recurrenceRule: "FREQ=YEARLY",
+    }),
+    {
+      title: "Heritage Day",
+      startDate: "2026-09-24",
+      startTime: "00:00",
+      endDate: "2026-09-25",
+      endTime: "00:00",
+      allDay: true,
+      participantIds: ["member-1"],
+      categoryId: "category-1",
+      location: "Home",
+      description: "Braai",
+      recurrenceRule: "FREQ=YEARLY",
+    },
+  );
 });
 
 test("rejects end date/times that are not after the start", () => {
