@@ -2,6 +2,7 @@ import {
   normalizeCreateShoppingItem,
   normalizeUpdateShoppingItem,
   parseShoppingCompletion,
+  parseShoppingItemId,
 } from "./shopping-validation";
 import type {
   ShoppingItem,
@@ -36,8 +37,8 @@ export function createShoppingService(repository: ShoppingRepository) {
       return (await repository.list()).sort(compareShoppingItems);
     },
 
-    getById(id: string) {
-      return repository.getById(id);
+    async getById(id: string) {
+      return repository.getById(parseShoppingItemId(id));
     },
 
     async create(input: unknown) {
@@ -45,18 +46,26 @@ export function createShoppingService(repository: ShoppingRepository) {
     },
 
     async update(id: string, input: unknown) {
-      return repository.update(id, normalizeUpdateShoppingItem(input));
-    },
-
-    async setCompleted(id: string, completed: unknown) {
-      return repository.setCompletion(
-        id,
-        parseShoppingCompletion(completed) ? new Date() : null,
+      return repository.update(
+        parseShoppingItemId(id),
+        normalizeUpdateShoppingItem(input),
       );
     },
 
-    delete(id: string) {
-      return repository.delete(id);
+    async setCompleted(id: string, completed: unknown) {
+      const itemId = parseShoppingItemId(id);
+      const desiredState = parseShoppingCompletion(completed);
+      const existing = await repository.getById(itemId);
+
+      if (!existing || existing.isCompleted === desiredState) {
+        return existing;
+      }
+
+      return repository.setCompletion(itemId, desiredState ? new Date() : null);
+    },
+
+    async delete(id: string) {
+      return repository.delete(parseShoppingItemId(id));
     },
   };
 }

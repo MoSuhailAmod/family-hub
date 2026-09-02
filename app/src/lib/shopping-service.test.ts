@@ -104,9 +104,22 @@ test("rejects invalid runtime inputs with controlled validation errors", async (
     { message: "Name must be a string" },
   );
   await assert.rejects(
-    () => service.setCompleted("item-id", "yes" as unknown as boolean),
+    () => service.setCompleted("00000000-0000-4000-8000-000000000001", "yes" as unknown as boolean),
     { message: "Completed must be a boolean" },
   );
+});
+
+test("rejects malformed stable ids before reaching persistence", async () => {
+  const service = createShoppingService(memoryRepository([item()]));
+
+  for (const operation of [
+    () => service.getById("not-a-uuid"),
+    () => service.update("not-a-uuid", { notes: "Organic" }),
+    () => service.setCompleted("not-a-uuid", true),
+    () => service.delete("not-a-uuid"),
+  ]) {
+    await assert.rejects(operation, { message: "Item id must be a UUID" });
+  }
 });
 
 test("updates editable shopping item fields by stable id", async () => {
@@ -148,6 +161,32 @@ test("completes and restores an item without deleting it", async () => {
   const restored = await service.setCompleted(existing.id, false);
   assert.equal(restored?.isCompleted, false);
   assert.equal(restored?.completedAt, null);
+});
+
+test("does not rewrite timestamps for repeated completion states", async () => {
+  const completed = item({
+    isCompleted: true,
+    completedAt: new Date("2026-09-01T12:00:00.000Z"),
+    updatedAt: new Date("2026-09-01T12:00:00.000Z"),
+  });
+  const active = item({
+    id: "00000000-0000-4000-8000-000000000002",
+    isCompleted: false,
+    completedAt: null,
+  });
+  let completionWrites = 0;
+  const service = createShoppingService({
+    ...memoryRepository([completed, active]),
+    getById: async (id) => id === completed.id ? completed : id === active.id ? active : null,
+    setCompletion: async () => {
+      completionWrites += 1;
+      return null;
+    },
+  });
+
+  assert.equal(await service.setCompleted(completed.id, true), completed);
+  assert.equal(await service.setCompleted(active.id, false), active);
+  assert.equal(completionWrites, 0);
 });
 
 test("hard deletes an item by stable id", async () => {
