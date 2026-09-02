@@ -22,15 +22,20 @@ const createShoppingItemSchema = z.object({
   notes: optionalText,
 });
 
-const updateShoppingItemSchema = z.object({
-  name: z
-    .string({ error: "Name must be a string" })
-    .trim()
-    .min(1, "Name is required")
-    .optional(),
-  quantity: optionalText.optional(),
-  notes: optionalText.optional(),
-});
+const updateShoppingItemSchema = z
+  .object({
+    name: z
+      .string({ error: "Name must be a string" })
+      .trim()
+      .min(1, "Name is required")
+      .optional(),
+    quantity: optionalText.optional(),
+    notes: optionalText.optional(),
+  })
+  .strict()
+  .refine((input) => Object.keys(input).length > 0, {
+    message: "At least one editable field is required",
+  });
 
 const completedSchema = z.boolean({
   error: "Completed must be a boolean",
