@@ -1,6 +1,7 @@
 import {
   normalizeCreateShoppingItem,
   normalizeUpdateShoppingItem,
+  parseShoppingCompletion,
 } from "./shopping-validation";
 import type {
   CreateShoppingItemInput,
@@ -41,16 +42,19 @@ export function createShoppingService(repository: ShoppingRepository) {
       return repository.getById(id);
     },
 
-    async create(input: CreateShoppingItemInput) {
+    async create(input: unknown) {
       return repository.create(normalizeCreateShoppingItem(input));
     },
 
-    async update(id: string, input: UpdateShoppingItemInput) {
+    async update(id: string, input: unknown) {
       return repository.update(id, normalizeUpdateShoppingItem(input));
     },
 
-    setCompleted(id: string, completed: boolean) {
-      return repository.setCompletion(id, completed ? new Date() : null);
+    async setCompleted(id: string, completed: unknown) {
+      return repository.setCompletion(
+        id,
+        parseShoppingCompletion(completed) ? new Date() : null,
+      );
     },
 
     delete(id: string) {

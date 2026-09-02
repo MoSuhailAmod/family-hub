@@ -96,6 +96,19 @@ test("rejects an empty shopping item name", async () => {
   });
 });
 
+test("rejects invalid runtime inputs with controlled validation errors", async () => {
+  const service = createShoppingService(memoryRepository());
+
+  await assert.rejects(
+    () => service.create({ name: 42 } as unknown as { name: string }),
+    { message: "Name must be a string" },
+  );
+  await assert.rejects(
+    () => service.setCompleted("item-id", "yes" as unknown as boolean),
+    { message: "Completed must be a boolean" },
+  );
+});
+
 test("updates editable shopping item fields by stable id", async () => {
   const existing = item();
   const service = createShoppingService(memoryRepository([existing]));
@@ -109,6 +122,18 @@ test("updates editable shopping item fields by stable id", async () => {
   assert.deepEqual(
     { name: updated?.name, quantity: updated?.quantity, notes: updated?.notes },
     { name: "Oat milk", quantity: "2 x 1L", notes: "Unsweetened" },
+  );
+});
+
+test("preserves unspecified fields during a partial update", async () => {
+  const existing = item({ quantity: "1L", notes: "Full cream" });
+  const service = createShoppingService(memoryRepository([existing]));
+
+  const updated = await service.update(existing.id, { quantity: "2L" });
+
+  assert.deepEqual(
+    { name: updated?.name, quantity: updated?.quantity, notes: updated?.notes },
+    { name: "Milk", quantity: "2L", notes: "Full cream" },
   );
 });
 
