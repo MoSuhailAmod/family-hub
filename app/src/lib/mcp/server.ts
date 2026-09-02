@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
 
+import { createShoppingToolAdapters } from "@/lib/mcp/shopping-tools";
+import { shoppingService } from "@/lib/shopping";
+
 import {
   getCalendarEventService,
   createCalendarEventService,
@@ -16,6 +19,7 @@ export function createFamilyHubMcpServer() {
     name: "family-hub",
     version: "0.1.0",
   });
+  const shoppingTools = createShoppingToolAdapters(shoppingService);
 
   server.registerTool(
     "family_hub_status",
@@ -213,6 +217,66 @@ export function createFamilyHubMcpServer() {
         ],
         isError: !result.success,
       };
+    },
+  );
+
+  server.registerTool(
+    "shopping_list_items",
+    {
+      description: "List Family Hub shopping items. Active items are returned before completed items.",
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => {
+      const result = await shoppingTools.list();
+      return { content: [{ type: "text", text: JSON.stringify(result) }], isError: !result.success };
+    },
+  );
+
+  server.registerTool(
+    "shopping_add_item",
+    {
+      description: "Add a shopping item. Duplicate names are retained as separate items with stable IDs.",
+      inputSchema: z.object({ name: z.string(), quantity: z.string().nullable().optional(), notes: z.string().nullable().optional() }),
+    },
+    async (input) => {
+      const result = await shoppingTools.add(input);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], isError: !result.success };
+    },
+  );
+
+  server.registerTool(
+    "shopping_update_item",
+    {
+      description: "Update the name, quantity, or notes of a shopping item by stable UUID.",
+      inputSchema: z.object({ id: z.string().uuid(), name: z.string().optional(), quantity: z.string().nullable().optional(), notes: z.string().nullable().optional() }),
+    },
+    async (input) => {
+      const result = await shoppingTools.update(input);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], isError: !result.success };
+    },
+  );
+
+  server.registerTool(
+    "shopping_complete_item",
+    {
+      description: "Mark a shopping item complete or restore it to incomplete by stable UUID.",
+      inputSchema: z.object({ id: z.string().uuid(), completed: z.boolean() }),
+    },
+    async (input) => {
+      const result = await shoppingTools.complete(input);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], isError: !result.success };
+    },
+  );
+
+  server.registerTool(
+    "shopping_delete_item",
+    {
+      description: "Permanently delete a shopping item by stable UUID. This requires explicit confirm: true.",
+      inputSchema: z.object({ id: z.string().uuid(), confirm: z.boolean() }),
+    },
+    async (input) => {
+      const result = await shoppingTools.delete(input);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], isError: !result.success };
     },
   );
 
