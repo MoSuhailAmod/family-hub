@@ -36,6 +36,10 @@ const completedSchema = z.boolean({
   error: "Completed must be a boolean",
 });
 
+const shoppingItemIdSchema = z.uuid({
+  error: "Item id must be a UUID",
+});
+
 function parseOrThrow<T>(schema: z.ZodType<T>, input: unknown): T {
   const parsed = schema.safeParse(input);
   if (parsed.success) return parsed.data;
@@ -69,6 +73,10 @@ export function normalizeUpdateShoppingItem(
 
 export function parseShoppingCompletion(input: unknown) {
   return parseOrThrow(completedSchema, input);
+}
+
+export function parseShoppingItemId(input: unknown) {
+  return parseOrThrow(shoppingItemIdSchema, input);
 }
 
 export type { UpdateShoppingItemInput };
