@@ -37,6 +37,8 @@ export default function ShoppingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -47,9 +49,11 @@ export default function ShoppingPage() {
       if (!response.ok) throw new Error("Unable to load shopping items");
       const data = await response.json();
       setItems(data.items ?? []);
+      setLoadFailed(false);
       setError(null);
     } catch (loadError) {
       console.error(loadError);
+      setLoadFailed(true);
       setError("Shopping items could not be loaded. Try again.");
     } finally {
       setLoading(false);
@@ -68,6 +72,7 @@ export default function ShoppingPage() {
       notes: item.notes ?? "",
     });
     setError(null);
+    setFieldError(null);
     setSuccess(null);
   }
 
@@ -81,11 +86,12 @@ export default function ShoppingPage() {
     const itemName = draft.name.trim();
     if (!itemName) {
       setSuccess(null);
-      setError("Please enter an item name.");
+      setFieldError("Please enter an item name.");
       return;
     }
 
     setSaving(true);
+    setFieldError(null);
     setError(null);
     setSuccess(null);
     const payload = {
@@ -199,8 +205,8 @@ export default function ShoppingPage() {
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder="Add milk, bread, apples…"
-              aria-invalid={Boolean(error && !draft.name.trim())}
-              aria-describedby={error && !draft.name.trim() ? "shopping-name-error" : undefined}
+              aria-invalid={Boolean(fieldError)}
+              aria-describedby={fieldError ? "shopping-name-error" : undefined}
               disabled={saving}
             />
           </label>
@@ -236,7 +242,8 @@ export default function ShoppingPage() {
         </form>
       </section>
 
-      {error && <div className="error-banner" role="alert" id={!draft.name.trim() ? "shopping-name-error" : undefined}>{error}</div>}
+      {fieldError && <div className="error-banner" role="alert" id="shopping-name-error">{fieldError}</div>}
+      {error && <div className="error-banner" role="alert">{error}</div>}
       {success && <div className="success-banner" role="status">{success}</div>}
 
       <section className="shopping-list-section" aria-labelledby="shopping-active-heading">
@@ -251,15 +258,17 @@ export default function ShoppingPage() {
             <RotateCcw size={14} /> Refresh
           </button>
         </div>
-        {loading ? <p className="skeleton-line">Loading your shopping list…</p> : active.length === 0 ? (
+        {loading ? <p className="skeleton-line">Loading your shopping list…</p> : loadFailed ? (
+          <div className="shopping-empty"><div><strong>Shopping list unavailable</strong><p>Try loading the list again.</p><button type="button" className="secondary-button" onClick={() => void loadItems()}>Try again</button></div></div>
+        ) : active.length === 0 ? (
           <div className="shopping-empty"><ShoppingCart size={22} /><div><strong>Nothing to buy right now</strong><p>Add something above when you think of it.</p></div></div>
-        ) : <ul className="shopping-items">{active.map((item) => <ShoppingRow key={item.id} item={item} pending={pendingItemId !== null} onComplete={() => void setCompleted(item, true)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>}
+        ) : <ul className="shopping-items">{active.map((item) => <ShoppingRow key={item.id} item={item} pending={pendingItemId === item.id} onComplete={() => void setCompleted(item, true)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>}
       </section>
 
       {!loading && completed.length > 0 && (
         <section className="shopping-list-section shopping-completed-section" aria-labelledby="shopping-completed-heading">
           <div className="shopping-section-heading"><div><p className="section-label">Done</p><h2 id="shopping-completed-heading">Completed</h2></div></div>
-          <ul className="shopping-items">{completed.map((item) => <ShoppingRow key={item.id} item={item} completed pending={pendingItemId !== null} onComplete={() => void setCompleted(item, false)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>
+          <ul className="shopping-items">{completed.map((item) => <ShoppingRow key={item.id} item={item} completed pending={pendingItemId === item.id} onComplete={() => void setCompleted(item, false)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>
         </section>
       )}
     </div>
