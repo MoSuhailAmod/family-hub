@@ -12,6 +12,7 @@ import {
 import { FormEvent, useEffect, useState } from "react";
 
 import { requestShoppingApi } from "@/lib/shopping-client";
+import { shoppingSuccessMessage } from "@/lib/shopping-feedback";
 
 type ShoppingItem = {
   id: string;
@@ -35,7 +36,9 @@ export default function ShoppingPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function loadItems() {
     setLoading(true);
@@ -65,6 +68,7 @@ export default function ShoppingPage() {
       notes: item.notes ?? "",
     });
     setError(null);
+    setSuccess(null);
   }
 
   function cancelEdit() {
@@ -74,13 +78,16 @@ export default function ShoppingPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!draft.name.trim()) {
+    const itemName = draft.name.trim();
+    if (!itemName) {
+      setSuccess(null);
       setError("Please enter an item name.");
       return;
     }
 
     setSaving(true);
     setError(null);
+    setSuccess(null);
     const payload = {
       name: draft.name,
       quantity: draft.quantity,
@@ -105,7 +112,9 @@ export default function ShoppingPage() {
         }
       }
 
+      const mutation = editingId ? "edit" : "add";
       cancelEdit();
+      setSuccess(shoppingSuccessMessage(mutation, itemName));
       await loadItems();
     } catch (submitError) {
       setError(
@@ -119,12 +128,19 @@ export default function ShoppingPage() {
   }
 
   async function setCompleted(item: ShoppingItem, completed: boolean) {
+    if (pendingItemId) return;
+
+    setPendingItemId(item.id);
     try {
       setError(null);
+      setSuccess(null);
       await requestShoppingApi(fetch, item.id, {
         method: "PATCH",
         body: { completed },
       });
+      setSuccess(
+        shoppingSuccessMessage(completed ? "complete" : "restore", item.name),
+      );
       await loadItems();
     } catch (actionError) {
       setError(
@@ -132,18 +148,23 @@ export default function ShoppingPage() {
           ? actionError.message
           : "Shopping item could not be updated.",
       );
+    } finally {
+      setPendingItemId(null);
     }
   }
 
   async function remove(item: ShoppingItem) {
-    if (!window.confirm(`Remove “${item.name}” from the shopping list?`)) {
+    if (pendingItemId || !window.confirm(`Remove “${item.name}” from the shopping list?`)) {
       return;
     }
 
+    setPendingItemId(item.id);
     try {
       setError(null);
+      setSuccess(null);
       await requestShoppingApi(fetch, item.id, { method: "DELETE" });
       if (editingId === item.id) cancelEdit();
+      setSuccess(shoppingSuccessMessage("remove", item.name));
       await loadItems();
     } catch (actionError) {
       setError(
@@ -151,6 +172,8 @@ export default function ShoppingPage() {
           ? actionError.message
           : "Shopping item could not be removed.",
       );
+    } finally {
+      setPendingItemId(null);
     }
   }
 
@@ -176,6 +199,8 @@ export default function ShoppingPage() {
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder="Add milk, bread, apples…"
+              aria-invalid={Boolean(error && !draft.name.trim())}
+              aria-describedby={error && !draft.name.trim() ? "shopping-name-error" : undefined}
               disabled={saving}
             />
           </label>
@@ -211,32 +236,40 @@ export default function ShoppingPage() {
         </form>
       </section>
 
-      {error && <div className="error-banner" role="alert">{error}</div>}
+      {error && <div className="error-banner" role="alert" id={!draft.name.trim() ? "shopping-name-error" : undefined}>{error}</div>}
+      {success && <div className="success-banner" role="status">{success}</div>}
 
       <section className="shopping-list-section" aria-labelledby="shopping-active-heading">
         <div className="shopping-section-heading">
           <div><p className="section-label">To buy</p><h2 id="shopping-active-heading">{active.length} active</h2></div>
-          <button type="button" className="text-link" onClick={() => void loadItems()}><RotateCcw size={14} /> Refresh</button>
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => void loadItems()}
+            disabled={loading || pendingItemId !== null}
+          >
+            <RotateCcw size={14} /> Refresh
+          </button>
         </div>
         {loading ? <p className="skeleton-line">Loading your shopping list…</p> : active.length === 0 ? (
           <div className="shopping-empty"><ShoppingCart size={22} /><div><strong>Nothing to buy right now</strong><p>Add something above when you think of it.</p></div></div>
-        ) : <ul className="shopping-items">{active.map((item) => <ShoppingRow key={item.id} item={item} onComplete={() => void setCompleted(item, true)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>}
+        ) : <ul className="shopping-items">{active.map((item) => <ShoppingRow key={item.id} item={item} pending={pendingItemId !== null} onComplete={() => void setCompleted(item, true)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>}
       </section>
 
       {!loading && completed.length > 0 && (
         <section className="shopping-list-section shopping-completed-section" aria-labelledby="shopping-completed-heading">
           <div className="shopping-section-heading"><div><p className="section-label">Done</p><h2 id="shopping-completed-heading">Completed</h2></div></div>
-          <ul className="shopping-items">{completed.map((item) => <ShoppingRow key={item.id} item={item} completed onComplete={() => void setCompleted(item, false)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>
+          <ul className="shopping-items">{completed.map((item) => <ShoppingRow key={item.id} item={item} completed pending={pendingItemId !== null} onComplete={() => void setCompleted(item, false)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>
         </section>
       )}
     </div>
   );
 }
 
-function ShoppingRow({ item, completed = false, onComplete, onEdit, onDelete }: { item: ShoppingItem; completed?: boolean; onComplete: () => void; onEdit: () => void; onDelete: () => void }) {
-  return <li className={`shopping-item ${completed ? "shopping-item-completed" : ""}`}>
-    <button type="button" className="shopping-complete-button" onClick={onComplete} aria-label={completed ? `Restore ${item.name}` : `Complete ${item.name}`}>{completed ? <Check size={18} /> : <Circle size={18} />}</button>
+function ShoppingRow({ item, completed = false, pending = false, onComplete, onEdit, onDelete }: { item: ShoppingItem; completed?: boolean; pending?: boolean; onComplete: () => void; onEdit: () => void; onDelete: () => void }) {
+  return <li className={`shopping-item ${completed ? "shopping-item-completed" : ""}`} aria-busy={pending}>
+    <button type="button" className="shopping-complete-button" onClick={onComplete} disabled={pending} aria-label={completed ? `Restore ${item.name}` : `Complete ${item.name}`}>{pending ? "…" : completed ? <Check size={18} /> : <Circle size={18} />}</button>
     <div className="shopping-item-copy"><strong>{item.name}</strong>{item.quantity && <span>{item.quantity}</span>}{item.notes && <p>{item.notes}</p>}</div>
-    <div className="shopping-item-actions"><button type="button" onClick={onEdit} aria-label={`Edit ${item.name}`}><Pencil size={16} /></button><button type="button" onClick={onDelete} aria-label={`Remove ${item.name}`}><Trash2 size={16} /></button></div>
+    <div className="shopping-item-actions"><button type="button" onClick={onEdit} disabled={pending} aria-label={`Edit ${item.name}`}><Pencil size={16} /></button><button type="button" onClick={onDelete} disabled={pending} aria-label={`Remove ${item.name}`}><Trash2 size={16} /></button></div>
   </li>;
 }
