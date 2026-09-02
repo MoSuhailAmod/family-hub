@@ -1,44 +1,74 @@
-import {
-  type CreateShoppingItemInput,
-  type NormalizedUpdateShoppingItemInput,
-  type UpdateShoppingItemInput,
+import { z } from "zod";
+
+import type {
+  CreateShoppingItemInput,
+  NormalizedUpdateShoppingItemInput,
+  UpdateShoppingItemInput,
 } from "./shopping-types";
 
-function optionalText(value: string | null | undefined) {
-  const normalized = value?.trim();
-  return normalized || null;
+export class ShoppingValidationError extends Error {}
+
+const optionalText = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((value) => value?.trim() || null);
+
+const createShoppingItemSchema = z.object({
+  name: z
+    .string({ error: "Name must be a string" })
+    .trim()
+    .min(1, "Name is required"),
+  quantity: optionalText,
+  notes: optionalText,
+});
+
+const updateShoppingItemSchema = z.object({
+  name: z
+    .string({ error: "Name must be a string" })
+    .trim()
+    .min(1, "Name is required")
+    .optional(),
+  quantity: optionalText.optional(),
+  notes: optionalText.optional(),
+});
+
+const completedSchema = z.boolean({
+  error: "Completed must be a boolean",
+});
+
+function parseOrThrow<T>(schema: z.ZodType<T>, input: unknown): T {
+  const parsed = schema.safeParse(input);
+  if (parsed.success) return parsed.data;
+
+  throw new ShoppingValidationError(parsed.error.issues[0].message);
 }
 
 export function normalizeCreateShoppingItem(
-  input: CreateShoppingItemInput,
+  input: unknown,
 ): Required<CreateShoppingItemInput> {
-  const name = input.name.trim();
-
-  if (!name) {
-    throw new Error("Name is required");
-  }
-
+  const parsed = parseOrThrow(createShoppingItemSchema, input);
   return {
-    name,
-    quantity: optionalText(input.quantity),
-    notes: optionalText(input.notes),
+    name: parsed.name,
+    quantity: parsed.quantity ?? null,
+    notes: parsed.notes ?? null,
   };
 }
 
 export function normalizeUpdateShoppingItem(
-  input: UpdateShoppingItemInput,
+  input: unknown,
 ): NormalizedUpdateShoppingItemInput {
-  if (input.name !== undefined && !input.name.trim()) {
-    throw new Error("Name is required");
-  }
+  const parsed = parseOrThrow(updateShoppingItemSchema, input);
+  const normalized: NormalizedUpdateShoppingItemInput = {};
 
-  return {
-    name: input.name?.trim(),
-    quantity:
-      input.quantity === undefined
-        ? undefined
-        : optionalText(input.quantity),
-    notes:
-      input.notes === undefined ? undefined : optionalText(input.notes),
-  };
+  if (parsed.name !== undefined) normalized.name = parsed.name;
+  if (parsed.quantity !== undefined) normalized.quantity = parsed.quantity;
+  if (parsed.notes !== undefined) normalized.notes = parsed.notes;
+
+  return normalized;
 }
+
+export function parseShoppingCompletion(input: unknown) {
+  return parseOrThrow(completedSchema, input);
+}
+
+export type { UpdateShoppingItemInput };
