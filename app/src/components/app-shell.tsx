@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Home,
   House,
+  ShoppingCart,
   Wifi,
 } from "lucide-react";
 
@@ -21,6 +22,11 @@ const navigation = [
     href: "/calendar",
     label: "Calendar",
     icon: CalendarDays,
+  },
+  {
+    href: "/shopping",
+    label: "Shopping",
+    icon: ShoppingCart,
   },
 ];
 
