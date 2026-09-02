@@ -89,6 +89,51 @@ test("returns not found for a missing shopping item", async () => {
   assert.deepEqual(await response.json(), { error: "Shopping item not found" });
 });
 
+test("rejects mixed completion and field updates predictably", async () => {
+  const calls: string[] = [];
+  const handlers = createShoppingRouteHandlers(
+    service({
+      update: async () => {
+        calls.push("update");
+        return item;
+      },
+      setCompleted: async () => {
+        calls.push("complete");
+        return item;
+      },
+    }),
+  );
+
+  const response = await handlers.update(
+    "item-id",
+    new Request("http://family-hub.test/api/shopping-items/item-id", {
+      method: "PATCH",
+      body: JSON.stringify({ completed: true, notes: "Organic" }),
+    }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: "Completion updates cannot include editable item fields",
+  });
+  assert.deepEqual(calls, []);
+});
+
+test("returns a predictable error for malformed JSON", async () => {
+  const handlers = createShoppingRouteHandlers(service());
+
+  const response = await handlers.create(
+    new Request("http://family-hub.test/api/shopping-items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
+    }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "Invalid JSON body" });
+});
+
 test("updates, completes, and deletes by stable id", async () => {
   const calls: string[] = [];
   const handlers = createShoppingRouteHandlers(
