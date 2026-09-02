@@ -134,6 +134,49 @@ test("returns a predictable error for malformed JSON", async () => {
   assert.deepEqual(await response.json(), { error: "Invalid JSON body" });
 });
 
+test("routes completion false and not-found update/delete results predictably", async () => {
+  const calls: string[] = [];
+  const handlers = createShoppingRouteHandlers(
+    service({
+      setCompleted: async (id, completed) => {
+        calls.push(`complete:${id}:${completed}`);
+        return { ...item, isCompleted: completed === true };
+      },
+      update: async () => null,
+      delete: async () => false,
+    }),
+  );
+
+  const restored = await handlers.update(
+    "item-id",
+    new Request("http://family-hub.test/api/shopping-items/item-id", {
+      method: "PATCH",
+      body: JSON.stringify({ completed: false }),
+    }),
+  );
+  const missingUpdate = await handlers.update(
+    "missing-id",
+    new Request("http://family-hub.test/api/shopping-items/missing-id", {
+      method: "PATCH",
+      body: JSON.stringify({ notes: "Organic" }),
+    }),
+  );
+  const missingDelete = await handlers.delete("missing-id");
+
+  assert.equal(restored.status, 200);
+  assert.deepEqual((await restored.json()).item, {
+    ...item,
+    isCompleted: false,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  });
+  assert.deepEqual(calls, ["complete:item-id:false"]);
+  for (const response of [missingUpdate, missingDelete]) {
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: "Shopping item not found" });
+  }
+});
+
 test("updates, completes, and deletes by stable id", async () => {
   const calls: string[] = [];
   const handlers = createShoppingRouteHandlers(
