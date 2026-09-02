@@ -7,6 +7,36 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+export const shoppingItems = pgTable("shopping_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  name: text("name").notNull(),
+
+  quantity: text("quantity"),
+
+  notes: text("notes"),
+
+  isCompleted: boolean("is_completed")
+    .default(false)
+    .notNull(),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+  })
+    .defaultNow()
+    .notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+  })
+    .defaultNow()
+    .notNull(),
+
+  completedAt: timestamp("completed_at", {
+    withTimezone: true,
+  }),
+});
+
 export const familyMembers = pgTable("family_members", {
   id: uuid("id").defaultRandom().primaryKey(),
 
