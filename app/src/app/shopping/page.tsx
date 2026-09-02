@@ -265,7 +265,7 @@ export default function ShoppingPage() {
         ) : <ul className="shopping-items">{active.map((item) => <ShoppingRow key={item.id} item={item} pending={pendingItemId === item.id} onComplete={() => void setCompleted(item, true)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>}
       </section>
 
-      {!loading && completed.length > 0 && (
+      {!loading && !loadFailed && completed.length > 0 && (
         <section className="shopping-list-section shopping-completed-section" aria-labelledby="shopping-completed-heading">
           <div className="shopping-section-heading"><div><p className="section-label">Done</p><h2 id="shopping-completed-heading">Completed</h2></div></div>
           <ul className="shopping-items">{completed.map((item) => <ShoppingRow key={item.id} item={item} completed pending={pendingItemId === item.id} onComplete={() => void setCompleted(item, false)} onEdit={() => beginEdit(item)} onDelete={() => void remove(item)} />)}</ul>
