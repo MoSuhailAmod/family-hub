@@ -4,10 +4,8 @@ import {
   parseShoppingCompletion,
 } from "./shopping-validation";
 import type {
-  CreateShoppingItemInput,
   ShoppingItem,
   ShoppingRepository,
-  UpdateShoppingItemInput,
 } from "./shopping-types";
 
 export type {
