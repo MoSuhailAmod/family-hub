@@ -14,6 +14,7 @@ export type ShoppingService = {
 };
 
 class InvalidJsonError extends Error {}
+class InvalidShoppingPatchError extends Error {}
 
 async function requestBody(request: Request): Promise<unknown> {
   try {
@@ -24,7 +25,11 @@ async function requestBody(request: Request): Promise<unknown> {
 }
 
 function errorResponse(error: unknown, operation: string) {
-  if (error instanceof ShoppingValidationError || error instanceof InvalidJsonError) {
+  if (
+    error instanceof ShoppingValidationError ||
+    error instanceof InvalidJsonError ||
+    error instanceof InvalidShoppingPatchError
+  ) {
     return Response.json({ error: error.message }, { status: 400 });
   }
 
@@ -46,8 +51,13 @@ function isCompletionUpdate(body: unknown): body is { completed: unknown } {
   return (
     typeof body === "object" &&
     body !== null &&
+    Object.keys(body).length === 1 &&
     "completed" in body
   );
+}
+
+function includesCompletionField(body: unknown) {
+  return typeof body === "object" && body !== null && "completed" in body;
 }
 
 export function createShoppingRouteHandlers(service: ShoppingService) {
@@ -81,6 +91,12 @@ export function createShoppingRouteHandlers(service: ShoppingService) {
     async update(id: string, request: Request) {
       try {
         const body = await requestBody(request);
+        if (includesCompletionField(body) && !isCompletionUpdate(body)) {
+          throw new InvalidShoppingPatchError(
+            "Completion updates cannot include editable item fields",
+          );
+        }
+
         const item = isCompletionUpdate(body)
           ? await service.setCompleted(id, body.completed)
           : await service.update(id, body);
