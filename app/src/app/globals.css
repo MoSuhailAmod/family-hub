@@ -286,6 +286,16 @@ a {
   font-size: 13px;
 }
 
+.success-banner {
+  margin: 18px 0;
+  padding: 13px 15px;
+  border: 1px solid #a7f3d0;
+  border-radius: 11px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 13px;
+}
+
 /* Dashboard */
 
 .dashboard-header,
@@ -1637,8 +1647,8 @@ a {
 }
 
 .shopping-complete-button {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
 }
 
@@ -1688,9 +1698,16 @@ a {
 }
 
 .shopping-item-actions button {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
+}
+
+.shopping-item-actions button:disabled,
+.shopping-complete-button:disabled,
+.text-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .shopping-item-actions button:last-child {
