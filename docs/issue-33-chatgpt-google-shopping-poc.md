@@ -4,7 +4,7 @@
 
 ## Decision
 
-**Do not build a Google Keep adapter, a Google Tasks relay, or any production sync infrastructure for this path.** This PR records a verified product and API limitation; it does not satisfy Issue #33's real-account acceptance test and must not close that issue.[1][3][8]
+**Do not build a Google Keep adapter, a Google Tasks relay, or any production sync infrastructure for this path.** This PR records a verified product and API limitation; it does not satisfy the issue's real-account acceptance test and must not close that issue.
 
 Google documents the Keep API as an enterprise-administrator API.[1] Its published `notes` resource has only `create`, `delete`, `get`, and `list` methods, so it has no documented update/patch operation for appending an item to one existing canonical shopping list note.[3] Although the API can create a new list note, creating a different note per request does not meet the canonical-list requirement.[2]
 
