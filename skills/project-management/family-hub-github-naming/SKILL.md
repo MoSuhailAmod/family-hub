@@ -1,7 +1,7 @@
 ---
 name: family-hub-github-naming
-description: Enforce Family Hub GitHub feature/task naming, numbering, ownership, labels, parent linkage, and legacy-sequence rules when creating or reorganizing issues.
-version: 1.0.0
+description: Enforce Family Hub GitHub feature/task naming, numbering, ownership, labels, parent linkage, legacy-sequence rules, and approved-PR completion workflow.
+version: 1.1.0
 metadata:
   hermes:
     tags: [family-hub, github, issues, naming, project-management]
@@ -12,7 +12,7 @@ metadata:
 
 ## When to Use
 
-Use this skill whenever creating, renaming, splitting, reorganizing, or prioritizing GitHub feature and task issues for the Family Hub repository.
+Use this skill whenever creating, renaming, splitting, reorganizing, or prioritizing GitHub feature and task issues for the Family Hub repository, and when completing the PR workflow for those tasks.
 
 Use it especially when:
 
@@ -22,6 +22,7 @@ Use it especially when:
 - deciding the next task number
 - moving work between module backlogs
 - dealing with older issues that predate the current naming convention
+- reviewing, approving, merging, and cleaning up a completed task branch
 
 ## Naming Convention
 
@@ -165,6 +166,40 @@ If the same implementation work already exists:
 
 Do not leave two active tasks that tell Hermes to implement the same change through different module backlogs.
 
+## Pull Request Completion Workflow
+
+When a Family Hub task is delivered through a pull request, use this completion sequence.
+
+### Approval gate
+
+Do not merge while any blocking review feedback remains unresolved.
+
+Before approving, verify the PR against the linked task's current acceptance criteria and any later issue comments that supersede older requirements.
+
+If the PR is satisfactory:
+
+1. Submit the approval.
+2. Merge the approved PR into its target branch, normally `main`.
+3. Confirm the merge actually completed and `main` contains the merged commit/change.
+4. Delete the merged feature branch from the remote repository.
+5. Only after successful merge should dependent work proceed from the updated `main`.
+
+### Branch cleanup rule
+
+After a PR has been successfully merged, delete its remote feature branch unless there is a specific reason to retain it.
+
+Never delete the branch before the merge succeeds.
+
+Do not delete protected or long-lived branches such as `main`.
+
+If GitHub blocks the merge or branch deletion, report the exact blocker instead of claiming completion.
+
+### Review/merge responsibility
+
+Hermes must not approve its own PRs. An authorized reviewer must approve them.
+
+Once an authorized reviewer has approved a PR and no blocking condition remains, the normal Family Hub workflow is to **merge it immediately and then delete the merged feature branch** rather than leaving an approved PR open waiting for a separate manual merge step.
+
 ## Title Quality Rules
 
 Prefer:
@@ -198,6 +233,14 @@ Before creating or renaming an issue, verify all of the following:
 - [ ] Priority is not embedded in the title.
 - [ ] No duplicate active task already covers the same implementation scope.
 
+Before considering a PR workflow complete, verify:
+
+- [ ] Blocking review comments are resolved.
+- [ ] The PR is approved by an authorized reviewer.
+- [ ] The PR is actually merged, not merely mergeable or assigned a prospective merge SHA.
+- [ ] The target branch has advanced to include the merged work.
+- [ ] The merged feature branch has been deleted from the remote repository.
+
 ## Pitfalls
 
 - **Using GitHub issue numbers as task numbers:** task numbering is feature-local and sequential.
@@ -206,3 +249,5 @@ Before creating or renaming an issue, verify all of the following:
 - **Naming by consuming feature instead of owning module:** this blurs architectural ownership and often duplicates work.
 - **Creating a second task instead of fixing an overlapping one:** search first and consolidate scope.
 - **Renaming old history automatically:** preserve historical issue titles unless explicit cleanup is requested.
+- **Treating approval as the end of the workflow:** after approval, merge the PR and delete the merged feature branch.
+- **Confusing a prospective merge SHA with a completed merge:** verify PR state and target-branch advancement before declaring it merged.
