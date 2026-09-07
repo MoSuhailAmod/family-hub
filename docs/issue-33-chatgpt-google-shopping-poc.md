@@ -8,7 +8,11 @@
 
 Google documents the Keep API as an enterprise-administrator API.[1] Its published `notes` resource has only `create`, `delete`, `get`, and `list` methods, so it has no documented update/patch operation for appending an item to one existing canonical shopping list note.[3] Although the API can create a new list note, creating a different note per request does not meet the canonical-list requirement.[2]
 
-OpenAI now documents that personal ChatGPT accounts—including Plus—cannot create or publish new GPTs.[8] ChatGPT app availability also varies by plan, region, workspace, role, model, and interface.[4] A Custom GPT Action is therefore unavailable as a new integration route for the household's current plan, regardless of the Action OAuth model described elsewhere in OpenAI's documentation.[6][8]
+OpenAI now documents that personal ChatGPT accounts—including Plus—cannot create or publish new GPTs.[8]
+
+ChatGPT app availability also varies by plan, region, workspace, role, model, and interface.[4]
+
+A Custom GPT Action is therefore unavailable as a new integration route for the household's current plan, regardless of the Action OAuth model described elsewhere in OpenAI's documentation.[6][8]
 
 ## Voice and dictation boundary
 
@@ -24,7 +28,7 @@ Google Tasks technically exposes `tasks.insert` to create a task in a specified 
 
 Google's Assistant documentation says its shopping lists and Assistant notes/lists are saved in Google Keep, and Assistant can create, update, and delete those Keep lists after the user grants Keep access.[10] A ChatGPT → Google Tasks bridge would therefore create a second canonical list and would not prove that Google Nest/Assistant and ChatGPT write to the same household shopping list.[10]
 
-Do not alter downstream issues #34–#38 from Keep to Tasks unless a separate design decision proves that Nest can target the selected Tasks list and that the household accepts the split-list trade-off.[10] That proof is not available here.
+Do not alter the downstream Keep sync work to use Tasks unless a separate design decision proves that Nest can target the selected Tasks list and that the household accepts the split-list trade-off.[10] That proof is not available here.
 
 ## Explicitly rejected options
 
