@@ -1,77 +1,54 @@
 # Issue #33: ChatGPT → Google-side shopping write POC
 
-**Status:** Decision complete — do not build a Google Keep sync adapter.
+**Status:** Stop condition confirmed — no supported ChatGPT write path is available on the household's current personal ChatGPT Plus plan.[8]
 
 ## Decision
 
-**Stop the Google Keep route. Change the target Google-side canonical list to Google Tasks only if a user-run ChatGPT proof succeeds.** No production adapter, webhook, or credential handling is introduced by this issue.[1][3]
+**Do not build a Google Keep adapter, a Google Tasks relay, or any production sync infrastructure for this path.** This PR records a verified product and API limitation; it does not satisfy Issue #33's real-account acceptance test and must not close that issue.[1][3][8]
 
-The official Keep API is presented as an enterprise-administrator API, and its published `notes` resource has only `create`, `delete`, `get`, and `list` methods—there is no documented update/patch method for adding one item to an existing canonical list note.[1][3] The API can create a new list note, but that does not meet the requirement to append to one selected shopping list.[2]
+Google documents the Keep API as an enterprise-administrator API.[1] Its published `notes` resource has only `create`, `delete`, `get`, and `list` methods, so it has no documented update/patch operation for appending an item to one existing canonical shopping list note.[3] Although the API can create a new list note, creating a different note per request does not meet the canonical-list requirement.[2]
 
-Google Tasks is the supported fallback candidate. Its public `tasks.insert` endpoint creates one task in a specified task list and requires the `https://www.googleapis.com/auth/tasks` OAuth scope.[7]
+OpenAI now documents that personal ChatGPT accounts—including Plus—cannot create or publish new GPTs.[8] ChatGPT app availability also varies by plan, region, workspace, role, model, and interface.[4] A Custom GPT Action is therefore unavailable as a new integration route for the household's current plan, regardless of the Action OAuth model described elsewhere in OpenAI's documentation.[6][8]
 
-## Chosen POC architecture
+## Voice and dictation boundary
 
-```text
-ChatGPT custom GPT (text)
-        │ action with OAuth
-        ▼
-Narrow Family Hub Google Tasks relay
-        │ server-side refresh token only
-        ▼
-Google Tasks: selected canonical shopping list
-        │
-        └── returns provider task ID and normalized title
-```
+The desired feature is a ChatGPT-originated shopping write that accepts voice input. That is not currently available through Custom GPT Actions: OpenAI documents that custom actions are unavailable in Voice conversations with GPTs.[9]
 
-The relay exposes exactly one write operation:
+**ChatGPT Voice/Live is rejected for this POC.** Live does not support connected apps or plugins, and custom actions are not available in Voice conversations with GPTs.[9]
 
-```text
-add_shopping_item(name: string) -> { externalId: string, name: string }
-```
+**Dictation is not equivalent to Voice/Live.** OpenAI describes Dictation as recording a single prompt, allowing the user to review/edit its transcription, then sending it as text.[9] Dictation could make ordinary text entry easier, but it does not provide a supported Plus-plan mechanism to create a new Custom GPT Action or execute this integration automatically.[8][9]
 
-It must reject blank input, target one configured task-list ID, call Google Tasks `tasks.insert`, and return the provider-created ID.[7] It must not expose generic Google API access, arbitrary list IDs, provider credentials, or a public unauthenticated write endpoint.
+## Why Google Tasks is not an approved fallback
 
-A Custom GPT action is the appropriate ChatGPT-side mechanism to evaluate: OpenAI documents actions as OpenAPI-described external APIs with OAuth support.[6] ChatGPT app availability varies by plan, region, interface, and app configuration, and Voice mode currently does not support apps.[4] Therefore the required first proof is **text in the user's actual ChatGPT surface**, not a local HTTP-only test.[4]
+Google Tasks technically exposes `tasks.insert` to create a task in a specified list using the Google Tasks OAuth scope.[7] It is **not** selected as the canonical bridge.
 
-## Authentication and secret model
+Google's Assistant documentation says its shopping lists and Assistant notes/lists are saved in Google Keep, and Assistant can create, update, and delete those Keep lists after the user grants Keep access.[10] A ChatGPT → Google Tasks bridge would therefore create a second canonical list and would not prove that Google Nest/Assistant and ChatGPT write to the same household shopping list.[10]
 
-1. Create a Google OAuth client for the relay and request only the Google Tasks scope required by `tasks.insert`.[7]
-2. The household account owner completes OAuth once in the relay's server-side authorization flow, consistent with the OAuth requirement for the Google Tasks write scope.[7]
-3. Store the refresh token in the deployment secret store/host configuration, never in Git, client JavaScript, or the ChatGPT Action schema.
-4. Configure the Custom GPT action to authenticate to the relay using OAuth; OpenAI documents OAuth as an Action authentication option.[6]
-5. Restrict the relay to the configured canonical task-list ID and the single add operation required by `tasks.insert`.[7]
+Do not alter downstream issues #34–#38 from Keep to Tasks unless a separate design decision proves that Nest can target the selected Tasks list and that the household accepts the split-list trade-off.[10] That proof is not available here.
 
-For ChatGPT custom apps with MCP write actions, OpenAI's current full-MCP support is limited to Business and Enterprise/Edu plans; Pro supports custom apps with read/fetch permissions only.[5] This is why this POC uses a Custom GPT **Action**, not a custom MCP write connector.
+## Explicitly rejected options
 
-## Required user-run acceptance test
+- **Google Keep API:** cannot support the required documented mutation of an existing canonical list note.[1][3]
+- **Keep scraping or private endpoints:** rejected by the issue stop conditions.
+- **Custom GPT Action on the current personal Plus plan:** unavailable because new personal GPT creation/publishing is unavailable.[8]
+- **ChatGPT Voice/Live plus Custom GPT Actions:** unsupported because custom actions are unavailable in Voice conversations with GPTs.[9]
+- **Custom MCP write connector:** not a Plus-plan alternative; OpenAI limits full MCP write support to eligible managed workspace plans.[5]
+- **Google Tasks as a silent substitute:** rejected because Google Assistant shopping lists are stored in Keep, not Tasks.[10]
+- **Public/unauthenticated webhooks or direct PostgreSQL writes:** rejected by the issue's security and architecture constraints.
 
-The following must be completed before any implementation work for Issue #34 begins:
+## What would reopen the investigation
 
-1. Confirm the user's ChatGPT plan supports creating and using a Custom GPT with Actions.[6]
-2. Configure the action against a deployed authenticated relay using its OpenAPI schema and OAuth callback, both documented Action configuration concepts.[6]
-3. In a normal ChatGPT **text** conversation with that GPT, ask: `Add POC bread to my shopping list`.
-4. Confirm the relay log records one authenticated request and one successful Google Tasks `tasks.insert` response.[7]
-5. Confirm exactly one task named `POC bread` appears in the configured canonical Google Tasks list.[7]
-6. Repeat with `2L milk`; confirm the text is preserved as `2L milk`.
-7. Start a fresh ChatGPT conversation and repeat once to prove the connection does not require authentication for every request.
-8. Remove both POC tasks after evidence is captured.
+Only one of the following evidence-backed changes justifies reopening Issue #33:
 
-A successful local relay test alone is insufficient; the request must originate from the user's real ChatGPT account and interface. A voice proof is explicitly deferred because ChatGPT Voice mode does not support apps.[4]
+1. The household moves to an eligible managed ChatGPT workspace and can create a Custom GPT Action; a **text-only** real-account proof is then required. Voice support still needs independent validation because it remains unavailable for Custom GPT Actions.[8][9]
+2. A supported, Plus-compatible existing ChatGPT plugin/app is identified that can write a single canonical Google Keep shopping list; it must be tested from the household account with a real test item.
+3. Google publishes a supported Keep API mutation that can append/update an existing list item and a supported ChatGPT surface can invoke the authenticated adapter on the household's plan.
 
-## Explicit rejections
+Until then, preserve Google Keep as the Google Nest/Assistant shopping-list store and treat ChatGPT shopping write integration as blocked. Issue #34 and the later Keep sync tasks remain gated behind an accepted supported architecture and a real-account proof.
 
-- **Google Keep API:** rejected for this feature because its documented interface cannot mutate an existing canonical list note.[1][3]
-- **Keep scraping/private endpoints:** rejected by the issue stop conditions.
-- **Unauthenticated/public webhook:** rejected; it would permit arbitrary shopping-list writes.
-- **Custom MCP write connector:** rejected for this household POC unless the user has an eligible Business or Enterprise/Edu workspace.[5]
-- **Direct PostgreSQL writes:** rejected; any later inbound sync must use the Family Hub shopping service as required by Issue #34.
+## Evidence not claimed
 
-## Outcome and next gate
-
-**Recommendation: change approach, pending the user-run Custom GPT Action + Google Tasks acceptance test.** If the user cannot create/use Actions in their current ChatGPT plan or surface, stop this path and record the plan limitation; do not implement a developer-only workaround.[4][6] If the test passes, revise child issues #34–#37 from Google Keep to Google Tasks before implementing sync, identity mapping, or bidirectional behavior.
-
-No Google credentials were requested, stored, or tested during this repository work. No claim is made that a ChatGPT-originated item has been created: that verification requires the user's authenticated ChatGPT and Google environments.
+No Google credentials were requested, stored, or tested during this work. No ChatGPT-originated item was created. No Google Nest behavior was tested. The required proof from the user's actual ChatGPT plan and a test item in the canonical list remains incomplete.
 
 ## Sources
 
@@ -82,3 +59,6 @@ No Google credentials were requested, stored, or tested during this repository w
 [5] https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt
 [6] https://help.openai.com/en/articles/9442513-configuring-actions-in-gpts
 [7] https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/insert
+[8] https://help.openai.com/en/articles/8554397
+[9] https://help.openai.com/en/articles/20001274-chatgpt-voice
+[10] https://support.google.com/assistant/answer/14171370
