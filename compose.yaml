@@ -37,5 +37,20 @@ services:
       postgres:
         condition: service_healthy
 
+  notification-worker:
+    build:
+      context: ./app
+    container_name: family-hub-notification-worker
+    restart: unless-stopped
+    command: npm run notifications:worker
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:***@postgres:5432/${POSTGRES_DB}"
+      HOME_ASSISTANT_URL: "${HOME_ASSISTANT_URL}"
+      HOME_ASSISTANT_TOKEN: "${HOME_ASSISTANT_TOKEN}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
