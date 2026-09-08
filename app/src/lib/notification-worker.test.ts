@@ -86,3 +86,51 @@ test("uses a distinct stable identity for recurring occurrences", async () => {
   await worker.run(new Date("2026-09-08T08:15:00.000Z"));
   assert.deepEqual(claims, ["event-1:2026-09-08T08:10:00.000Z", "event-1:2026-09-08T08:11:00.000Z"]);
 });
+
+test("dispatches multiple reminder rules for one event independently", async () => {
+  const claimed: string[] = [];
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [{ ...reminder, id: "reminder-10", offsetMinutes: 10 }, { ...reminder, id: "reminder-30", offsetMinutes: 30, startAt: new Date("2026-09-08T08:30:00.000Z") }],
+    claim: async (intent) => { claimed.push(intent.reminderId); return true; }, complete: async () => undefined, expire: async () => undefined,
+    resolveRecipients: async () => [{ id: "destination-1", provider: "home_assistant", target: "mobile_app_phone" }], send: async () => ({ success: true, provider: "home_assistant", status: 200 }),
+  });
+  assert.equal((await worker.run(now)).delivered, 2);
+  assert.deepEqual(claimed, ["reminder-10", "reminder-30"]);
+});
+
+test("delivers to each participant's current enabled destination", async () => {
+  const targets: string[] = [];
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [{ ...reminder, participantIds: ["member-a", "member-b"] }], claim: async () => true, complete: async () => undefined, expire: async () => undefined,
+    resolveRecipients: async (ids) => { assert.deepEqual(ids, ["member-a", "member-b"]); return [{ id: "a", provider: "home_assistant", target: "mobile_app_a" }, { id: "b", provider: "home_assistant", target: "mobile_app_b" }]; },
+    send: async (_notification, destination) => { targets.push(destination.target); return { success: true, provider: "home_assistant", status: 200 }; },
+  });
+  assert.equal((await worker.run(now)).delivered, 2);
+  assert.deepEqual(targets, ["mobile_app_a", "mobile_app_b"]);
+});
+
+test("recovers a reminder inside the fifteen-minute catch-up window", async () => {
+  let sent = false;
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [{ ...reminder, startAt: new Date("2026-09-08T08:04:00.000Z") }], claim: async () => true, complete: async () => undefined, expire: async () => undefined,
+    resolveRecipients: async () => [{ id: "destination-1", provider: "home_assistant", target: "mobile_app_phone" }], send: async () => { sent = true; return { success: true, provider: "home_assistant", status: 200 }; },
+  });
+  assert.equal((await worker.run(now)).delivered, 1);
+  assert.equal(sent, true);
+});
+
+test("skips delivery when current discovery no longer returns a deleted event or removed reminder", async () => {
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [], claim: async () => { throw new Error("no current reminder should claim"); }, complete: async () => undefined, expire: async () => undefined,
+    resolveRecipients: async () => { throw new Error("no current reminder should route"); }, send: async () => { throw new Error("no current reminder should send"); },
+  });
+  assert.deepEqual(await worker.run(now), { delivered: 0, expired: 0, skipped: 0, failed: 0 });
+});
+
+test("skips an event when current participant destinations are disabled or absent", async () => {
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [reminder], claim: async () => { throw new Error("no destination should claim"); }, complete: async () => undefined, expire: async () => undefined,
+    resolveRecipients: async () => [], send: async () => { throw new Error("no destination should send"); },
+  });
+  assert.deepEqual(await worker.run(now), { delivered: 0, expired: 0, skipped: 0, failed: 0 });
+});
