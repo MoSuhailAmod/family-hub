@@ -135,6 +135,33 @@ test("preserves amended-import period identity and rejects document-period colli
       ),
       { code: "23505" },
     );
+    await client.query(
+      `insert into spending_source_documents (
+         source_producer, source_document_id, source_period_key
+       ) values ('argent', 'spending-2026-09', '2026-09')`,
+    );
+    await client.query(
+      `insert into spending_imports (
+         id, source_producer, source_document_id, source_period_key,
+         source_revision, source_content_sha256, source_issued_at
+       ) values (
+         '00000000-0000-0000-0000-000000000004',
+         'argent', 'spending-2026-09', '2026-09', '1', 'sha-3', now()
+       )`,
+    );
+    await assert.rejects(
+      client.query(
+        `insert into spending_periods (
+           id, import_id, source_producer, source_period_key,
+           start_date, end_date, currency, total
+         ) values (
+           '00000000-0000-0000-0000-000000000005',
+           '00000000-0000-0000-0000-000000000001',
+           'argent', '2026-09', '2026-09-01', '2026-09-30', 'ZAR', 100
+         )`,
+      ),
+      { code: "23503" },
+    );
   } finally {
     await client.end();
   }

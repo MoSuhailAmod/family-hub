@@ -43,6 +43,13 @@
       "when": 1788904757730,
       "tag": "0005_cheerful_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788905509202,
+      "tag": "0006_salty_lilandra",
+      "breakpoints": true
     }
   ]
 }

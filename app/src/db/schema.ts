@@ -380,6 +380,11 @@ export const spendingImports = pgTable(
       ],
       name: "spending_imports_source_document_period_spending_source_documents_fk",
     }),
+    uniqueIndex("spending_imports_id_producer_period_unique").on(
+      table.id,
+      table.sourceProducer,
+      table.sourcePeriodKey,
+    ),
     uniqueIndex("spending_imports_id_producer_unique").on(
       table.id,
       table.sourceProducer,
@@ -413,9 +418,13 @@ export const spendingPeriods = pgTable(
   },
   (table) => [
     foreignKey({
-      columns: [table.importId, table.sourceProducer],
-      foreignColumns: [spendingImports.id, spendingImports.sourceProducer],
-      name: "spending_periods_import_id_source_producer_spending_imports_fk",
+      columns: [table.importId, table.sourceProducer, table.sourcePeriodKey],
+      foreignColumns: [
+        spendingImports.id,
+        spendingImports.sourceProducer,
+        spendingImports.sourcePeriodKey,
+      ],
+      name: "spending_periods_import_id_source_producer_period_spending_imports_fk",
     }),
     uniqueIndex("spending_periods_id_producer_unique").on(
       table.id,

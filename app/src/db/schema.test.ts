@@ -151,6 +151,7 @@ test("defines flexible Spending source snapshots and future reporting mappings",
   assert.deepEqual(constraintNames(schema.spendingImports), {
     checks: [],
     indexes: [
+      "spending_imports_id_producer_period_unique",
       "spending_imports_id_producer_unique",
       "spending_imports_source_document_index",
       "spending_imports_source_revision_unique",
@@ -192,7 +193,7 @@ test("defines flexible Spending source snapshots and future reporting mappings",
     "spending_imports_source_document_period_spending_source_documents_fk",
   ]);
   assert.deepEqual(foreignKeyNames(schema.spendingPeriods), [
-    "spending_periods_import_id_source_producer_spending_imports_fk",
+    "spending_periods_import_id_source_producer_period_spending_imports_fk",
   ]);
   assert.deepEqual(foreignKeyNames(schema.spendingPeriodCategories), [
     "spending_period_categories_category_id_source_producer_spending_categories_fk",
