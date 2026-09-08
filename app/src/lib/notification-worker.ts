@@ -77,6 +77,7 @@ export function createNotificationWorker(dependencies: NotificationWorkerDepende
       const summary = { delivered: 0, expired: 0, skipped: 0, failed: 0 };
       for (const reminder of reminders) {
         const scheduled = scheduledFor(reminder);
+        if (scheduled > now) { summary.skipped += 1; continue; }
         const destinations = await dependencies.resolveRecipients(reminder.participantIds);
         for (const destination of destinations) {
           const intent = { reminderId: reminder.id, destinationId: destination.id, occurrenceKey: occurrenceKey(reminder), scheduledFor: scheduled };

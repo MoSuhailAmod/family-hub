@@ -63,3 +63,26 @@ test("does not resend an occurrence when its durable delivery cannot be claimed"
   assert.deepEqual(await worker.run(now), { delivered: 0, expired: 0, skipped: 1, failed: 0 });
   assert.equal(sent, false);
 });
+
+test("retries a transient provider failure using the same durable occurrence identity", async () => {
+  const claims: string[] = []; let sends = 0;
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [reminder], claim: async (intent) => { claims.push(`${intent.reminderId}:${intent.occurrenceKey}:${intent.destinationId}`); return true; }, complete: async () => undefined, expire: async () => undefined,
+    resolveRecipients: async () => [{ id: "destination-1", provider: "home_assistant", target: "mobile_app_phone" }],
+    send: async () => ++sends === 1 ? { success: false, provider: "home_assistant", kind: "network", message: "unavailable" } : { success: true, provider: "home_assistant", status: 200 },
+  });
+  assert.equal((await worker.run(now)).failed, 1);
+  assert.equal((await worker.run(now)).delivered, 1);
+  assert.deepEqual(claims, ["reminder-1:event-1:destination-1", "reminder-1:event-1:destination-1"]);
+});
+
+test("uses a distinct stable identity for recurring occurrences", async () => {
+  const claims: string[] = [];
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [{ ...reminder, recurrenceRule: "FREQ=DAILY", startAt: new Date("2026-09-08T08:10:00.000Z") }, { ...reminder, recurrenceRule: "FREQ=DAILY", startAt: new Date("2026-09-08T08:11:00.000Z") }],
+    claim: async (intent) => { claims.push(intent.occurrenceKey); return true; }, complete: async () => undefined, expire: async () => undefined,
+    resolveRecipients: async () => [{ id: "destination-1", provider: "home_assistant", target: "mobile_app_phone" }], send: async () => ({ success: true, provider: "home_assistant", status: 200 }),
+  });
+  await worker.run(new Date("2026-09-08T08:15:00.000Z"));
+  assert.deepEqual(claims, ["event-1:2026-09-08T08:10:00.000Z", "event-1:2026-09-08T08:11:00.000Z"]);
+});

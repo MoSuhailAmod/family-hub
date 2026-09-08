@@ -35,16 +35,27 @@ export function createPostgresNotificationWorkerDependencies(dependencies: Pick<
       const result = await pool.query(
         `INSERT INTO notification_deliveries (reminder_id, destination_id, occurrence_key, scheduled_for, status, attempt_count, last_attempted_at)
          VALUES ($1, $2, $3, $4, 'sending', 1, NOW())
-         ON CONFLICT (reminder_id, occurrence_key, destination_id) DO NOTHING`,
+         ON CONFLICT (reminder_id, occurrence_key, destination_id) DO UPDATE
+           SET status = 'sending', attempt_count = notification_deliveries.attempt_count + 1,
+               last_attempted_at = NOW(), next_attempt_at = NULL, updated_at = NOW()
+         WHERE notification_deliveries.status = 'retrying'
+           AND notification_deliveries.scheduled_for >= NOW() - INTERVAL '15 minutes'
+           AND (notification_deliveries.next_attempt_at IS NULL OR notification_deliveries.next_attempt_at <= NOW())
+         RETURNING id`,
         [intent.reminderId, intent.destinationId, intent.occurrenceKey, intent.scheduledFor],
       );
       return result.rowCount === 1;
     },
     async complete(intent, result) {
+      const retryable = !result.success && ["network", "timeout", "provider"].includes(result.kind);
       await pool.query(
-        `UPDATE notification_deliveries SET status = $5, delivered_at = CASE WHEN $5 = 'delivered' THEN NOW() ELSE NULL END,
-           last_error = $6, updated_at = NOW() WHERE reminder_id = $1 AND destination_id = $2 AND occurrence_key = $3 AND scheduled_for = $4`,
-        [intent.reminderId, intent.destinationId, intent.occurrenceKey, intent.scheduledFor, result.success ? "delivered" : "failed", result.success ? null : result.message],
+        `UPDATE notification_deliveries
+         SET status = $5,
+             delivered_at = CASE WHEN $5 = 'delivered' THEN NOW() ELSE NULL END,
+             next_attempt_at = CASE WHEN $5 = 'retrying' THEN NOW() + INTERVAL '1 minute' ELSE NULL END,
+             last_error = $6, updated_at = NOW()
+         WHERE reminder_id = $1 AND destination_id = $2 AND occurrence_key = $3 AND scheduled_for = $4`,
+        [intent.reminderId, intent.destinationId, intent.occurrenceKey, intent.scheduledFor, result.success ? "delivered" : retryable ? "retrying" : "failed", result.success ? null : result.message],
       );
     },
     async expire(intent) {
