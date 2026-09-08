@@ -18,12 +18,17 @@ export function createNotificationDestinationService(repository: DestinationRepo
     },
     async update(id: string, patch: { target?: string; label?: string | null; enabled?: boolean }): Promise<Result<NotificationDestination>> {
       if (!id) return failure("VALIDATION", "Destination id is required");
-      if (patch.target !== undefined && !homeAssistantTarget.test(patch.target.trim())) return failure("VALIDATION", "Home Assistant target must be a mobile_app service name");
+      if (patch.target !== undefined) {
+        const target = patch.target.trim();
+        if (!homeAssistantTarget.test(target)) return failure("VALIDATION", "Home Assistant target must be a mobile_app service name");
+        const duplicate = (await repository.list()).some((item) => item.id !== id && item.provider === "home_assistant" && item.target === target);
+        if (duplicate) return failure("DUPLICATE", "Notification destination already exists");
+      }
       if (patch.enabled !== undefined && typeof patch.enabled !== "boolean") return failure("VALIDATION", "enabled must be boolean");
       const updated = await repository.update(id, { ...patch, ...(patch.target === undefined ? {} : { target: patch.target.trim() }), ...(patch.label === undefined ? {} : { label: patch.label?.trim() || null }) });
       return updated ? { success: true, data: updated } : failure("NOT_FOUND", "Notification destination not found");
     },
     async delete(id: string): Promise<Result<{ id: string }>> { return (await repository.delete(id)) ? { success: true, data: { id } } : failure("NOT_FOUND", "Notification destination not found"); },
-    async resolveRecipients(participantIds: string[]) { const uniqueMembers = [...new Set(participantIds)]; if (!uniqueMembers.length) return []; const seen = new Set<string>(); return (await repository.list(uniqueMembers)).filter((item) => item.enabled && !seen.has(item.id) && !!seen.add(item.id)).map(({ enabled: _enabled, ...item }) => item); },
+    async resolveRecipients(participantIds: string[]) { const uniqueMembers = [...new Set(participantIds)]; if (!uniqueMembers.length) return []; const seen = new Set<string>(); return (await repository.list(uniqueMembers)).filter((item) => item.enabled && !seen.has(item.id) && !!seen.add(item.id)).map((item) => ({ id: item.id, familyMemberId: item.familyMemberId, familyMemberName: item.familyMemberName, provider: item.provider, target: item.target, label: item.label })); },
   };
 }
