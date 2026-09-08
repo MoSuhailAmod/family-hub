@@ -6,7 +6,7 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const homeAssistantTarget = /^mobile_app_[a-z0-9_]+$/i;
 function failure(code: "VALIDATION" | "NOT_FOUND" | "DUPLICATE", error: string): Result<never> { return { success: false, code, error }; }
 function normalizeTarget(provider: string, target: string): string | Result<never> { const normalized = target.trim(); if (provider !== "home_assistant") return failure("VALIDATION", "Unsupported notification provider"); if (!homeAssistantTarget.test(normalized)) return failure("VALIDATION", "Home Assistant target must be a mobile_app service name"); return normalized; }
-export function createNotificationDestinationService(repository: DestinationRepository) {
+export function createNotificationDestinationService(repository: DestinationRepository, options: { onUnmappedParticipants?: (participantIds: string[]) => void } = {}) {
   return {
     list: (familyMemberId?: string) => repository.list(familyMemberId ? [familyMemberId] : undefined),
     async create(input: { familyMemberId: string; provider: string; target: string; label?: string | null }): Promise<Result<NotificationDestination>> {
@@ -29,6 +29,7 @@ export function createNotificationDestinationService(repository: DestinationRepo
       return updated ? { success: true, data: updated } : failure("NOT_FOUND", "Notification destination not found");
     },
     async delete(id: string): Promise<Result<{ id: string }>> { return (await repository.delete(id)) ? { success: true, data: { id } } : failure("NOT_FOUND", "Notification destination not found"); },
-    async resolveRecipients(participantIds: string[]) { const uniqueMembers = [...new Set(participantIds)]; if (!uniqueMembers.length) return []; const seen = new Set<string>(); return (await repository.list(uniqueMembers)).filter((item) => item.enabled && !seen.has(item.id) && !!seen.add(item.id)).map((item) => ({ id: item.id, familyMemberId: item.familyMemberId, familyMemberName: item.familyMemberName, provider: item.provider, target: item.target, label: item.label })); },
+    async resolveRecipientRouting(participantIds: string[]) { const uniqueMembers = [...new Set(participantIds)]; if (!uniqueMembers.length) return { destinations: [], unmappedParticipantIds: [] }; const seen = new Set<string>(); const destinations = (await repository.list(uniqueMembers)).filter((item) => item.enabled && !seen.has(item.id) && !!seen.add(item.id)).map((item) => ({ id: item.id, familyMemberId: item.familyMemberId, familyMemberName: item.familyMemberName, provider: item.provider, target: item.target, label: item.label })); const mapped = new Set(destinations.map((item) => item.familyMemberId)); const unmappedParticipantIds = uniqueMembers.filter((id) => !mapped.has(id)); if (unmappedParticipantIds.length) options.onUnmappedParticipants?.(unmappedParticipantIds); return { destinations, unmappedParticipantIds }; },
+    async resolveRecipients(participantIds: string[]) { return (await this.resolveRecipientRouting(participantIds)).destinations; },
   };
 }
