@@ -79,6 +79,67 @@ test("applies Spending migration through Drizzle on a fresh PostgreSQL 17 databa
   }
 });
 
+test("preserves amended-import period identity and rejects document-period collisions", async () => {
+  const client = await databaseClient("family_hub_import_audit");
+
+  try {
+    await applyMigrations(client, migrationsFolder);
+
+    await client.query(
+      `insert into spending_source_documents (
+         source_producer, source_document_id, source_period_key
+       ) values ($1, $2, $3)`,
+      ["argent", "spending-2026-08", "2026-08"],
+    );
+    await client.query(
+      `insert into spending_imports (
+         id, source_producer, source_document_id, source_period_key,
+         source_revision, source_content_sha256, source_issued_at
+       ) values
+         ('00000000-0000-0000-0000-000000000001', $1, $2, $3, '1', 'sha-1', now()),
+         ('00000000-0000-0000-0000-000000000002', $1, $2, $3, '2', 'sha-2', now())`,
+      ["argent", "spending-2026-08", "2026-08"],
+    );
+    await client.query(
+      `insert into spending_periods (
+         id, import_id, source_producer, source_period_key,
+         start_date, end_date, currency, total
+       ) values (
+         '00000000-0000-0000-0000-000000000003',
+         '00000000-0000-0000-0000-000000000001',
+         'argent', '2026-08', '2026-08-01', '2026-08-31', 'ZAR', 100
+       )`,
+    );
+    await client.query(
+      `update spending_periods
+          set import_id = '00000000-0000-0000-0000-000000000002'
+        where id = '00000000-0000-0000-0000-000000000003'`,
+    );
+
+    const imports = await client.query<{ source_period_key: string }>(
+      `select source_period_key
+         from spending_imports
+        where source_producer = 'argent'
+          and source_document_id = 'spending-2026-08'
+        order by source_revision`,
+    );
+    assert.deepEqual(imports.rows, [
+      { source_period_key: "2026-08" },
+      { source_period_key: "2026-08" },
+    ]);
+    await assert.rejects(
+      client.query(
+        `insert into spending_source_documents (
+           source_producer, source_document_id, source_period_key
+         ) values ('argent', 'spending-2026-08', '2026-09')`,
+      ),
+      { code: "23505" },
+    );
+  } finally {
+    await client.end();
+  }
+});
+
 test("upgrades an existing PostgreSQL 17 database through the Spending migration", async () => {
   const legacyMigrationsFolder = await mkdtemp(join(tmpdir(), "family-hub-drizzle-"));
   const legacyMetaFolder = join(legacyMigrationsFolder, "meta");

@@ -86,12 +86,18 @@ function foreignKeyNames(table: Parameters<typeof getTableConfig>[0]) {
 }
 
 test("defines flexible Spending source snapshots and future reporting mappings", () => {
+  assertTableColumns("spendingSourceDocuments", "spending_source_documents", [
+    "sourceDocumentId",
+    "sourcePeriodKey",
+    "sourceProducer",
+  ]);
   assertTableColumns("spendingImports", "spending_imports", [
     "id",
     "importedAt",
     "sourceContentSha256",
     "sourceDocumentId",
     "sourceIssuedAt",
+    "sourcePeriodKey",
     "sourceProducer",
     "sourceRevision",
   ]);
@@ -138,6 +144,10 @@ test("defines flexible Spending source snapshots and future reporting mappings",
     ["categoryId", "reportingGroupId"],
   );
 
+  assert.deepEqual(constraintNames(schema.spendingSourceDocuments), {
+    checks: [],
+    indexes: ["spending_source_documents_document_period_unique"],
+  });
   assert.deepEqual(constraintNames(schema.spendingImports), {
     checks: [],
     indexes: [
@@ -178,6 +188,9 @@ test("defines flexible Spending source snapshots and future reporting mappings",
       "spending_transactions_period_source_transaction_unique",
     ],
   });
+  assert.deepEqual(foreignKeyNames(schema.spendingImports), [
+    "spending_imports_source_document_period_spending_source_documents_fk",
+  ]);
   assert.deepEqual(foreignKeyNames(schema.spendingPeriods), [
     "spending_periods_import_id_source_producer_spending_imports_fk",
   ]);

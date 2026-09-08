@@ -327,6 +327,24 @@ export const notificationDeliveries = pgTable(
   ],
 );
 
+// Immutable source-document-to-period identity. One producer document cannot describe two periods.
+export const spendingSourceDocuments = pgTable(
+  "spending_source_documents",
+  {
+    sourceProducer: text("source_producer").notNull(),
+    sourceDocumentId: text("source_document_id").notNull(),
+    sourcePeriodKey: text("source_period_key").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sourceProducer, table.sourceDocumentId] }),
+    uniqueIndex("spending_source_documents_document_period_unique").on(
+      table.sourceProducer,
+      table.sourceDocumentId,
+      table.sourcePeriodKey,
+    ),
+  ],
+);
+
 // Immutable source metadata for each imported source document revision.
 export const spendingImports = pgTable(
   "spending_imports",
@@ -335,6 +353,7 @@ export const spendingImports = pgTable(
 
     sourceProducer: text("source_producer").notNull(),
     sourceDocumentId: text("source_document_id").notNull(),
+    sourcePeriodKey: text("source_period_key").notNull(),
     sourceRevision: text("source_revision").notNull(),
     sourceContentSha256: text("source_content_sha256").notNull(),
     sourceIssuedAt: timestamp("source_issued_at", {
@@ -348,6 +367,19 @@ export const spendingImports = pgTable(
       .notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [
+        table.sourceProducer,
+        table.sourceDocumentId,
+        table.sourcePeriodKey,
+      ],
+      foreignColumns: [
+        spendingSourceDocuments.sourceProducer,
+        spendingSourceDocuments.sourceDocumentId,
+        spendingSourceDocuments.sourcePeriodKey,
+      ],
+      name: "spending_imports_source_document_period_spending_source_documents_fk",
+    }),
     uniqueIndex("spending_imports_id_producer_unique").on(
       table.id,
       table.sourceProducer,
