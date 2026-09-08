@@ -37,16 +37,20 @@ test("validates family members, providers, and mobile notification targets", asy
   ]) assert.equal((await service.create(input)).success, false);
 });
 
-test("routes enabled destinations for every participant and skips unmatched participants", async () => {
+test("routes mapped participants and surfaces unmapped participants without blocking delivery", async () => {
+  const diagnostics: string[][] = [];
   const service = createNotificationDestinationService(repository([
     { id: "a1", familyMemberId: memberA, familyMemberName: "A", provider: "home_assistant", target: "mobile_app_a_phone", label: null, enabled: true },
     { id: "a2", familyMemberId: memberA, familyMemberName: "A", provider: "home_assistant", target: "mobile_app_a_tablet", label: null, enabled: true },
     { id: "b1", familyMemberId: memberB, familyMemberName: "B", provider: "home_assistant", target: "mobile_app_b_phone", label: null, enabled: false },
-  ]));
-  assert.deepEqual(await service.resolveRecipients([memberA, memberB]), [
+  ]), { onUnmappedParticipants: (ids) => diagnostics.push(ids) });
+  const routing = await service.resolveRecipientRouting([memberA, memberB]);
+  assert.deepEqual(routing.destinations, [
     { id: "a1", familyMemberId: memberA, familyMemberName: "A", provider: "home_assistant", target: "mobile_app_a_phone", label: null },
     { id: "a2", familyMemberId: memberA, familyMemberName: "A", provider: "home_assistant", target: "mobile_app_a_tablet", label: null },
   ]);
+  assert.deepEqual(routing.unmappedParticipantIds, [memberB]);
+  assert.deepEqual(diagnostics, [[memberB]]);
   assert.deepEqual(await service.resolveRecipients([]), []);
 });
 
