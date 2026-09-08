@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import { after, before, test } from "node:test";
 
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
+import EmbeddedPostgres from "embedded-postgres";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import type { Client } from "pg";
 
 const migrationsFolder = join(process.cwd(), "drizzle");
 const spendingTableNames = [
@@ -19,14 +20,39 @@ const spendingTableNames = [
   "spending_category_reporting_groups",
 ];
 
-async function applyMigrations(migrationsFolder: string) {
-  const client = new PGlite();
-  const db = drizzle(client);
-  await migrate(db, { migrationsFolder });
+let databaseDir: string;
+let postgres: EmbeddedPostgres;
+
+before(async () => {
+  databaseDir = await mkdtemp(join(tmpdir(), "family-hub-postgres-"));
+  postgres = new EmbeddedPostgres({
+    databaseDir,
+    port: 55432,
+    persistent: false,
+    onLog: () => {},
+    onError: () => {},
+  });
+  await postgres.initialise();
+  await postgres.start();
+});
+
+after(async () => {
+  await postgres.stop();
+  await rm(databaseDir, { recursive: true, force: true });
+});
+
+async function databaseClient(name: string) {
+  await postgres.createDatabase(name);
+  const client = postgres.getPgClient(name);
+  await client.connect();
   return client;
 }
 
-async function assertSpendingTablesExist(client: PGlite) {
+async function applyMigrations(client: Client, folder: string) {
+  await migrate(drizzle(client), { migrationsFolder: folder });
+}
+
+async function assertSpendingTablesExist(client: Client) {
   const result = await client.query<{ table_name: string }>(
     `select table_name
        from information_schema.tables
@@ -42,19 +68,21 @@ async function assertSpendingTablesExist(client: PGlite) {
   );
 }
 
-test("applies Spending migration through Drizzle on a fresh PostgreSQL-compatible database", async () => {
-  const client = await applyMigrations(migrationsFolder);
+test("applies Spending migration through Drizzle on a fresh PostgreSQL 17 database", async () => {
+  const client = await databaseClient("family_hub_fresh");
 
   try {
+    await applyMigrations(client, migrationsFolder);
     await assertSpendingTablesExist(client);
   } finally {
-    await client.close();
+    await client.end();
   }
 });
 
-test("upgrades an existing Drizzle database through the Spending migration", async () => {
+test("upgrades an existing PostgreSQL 17 database through the Spending migration", async () => {
   const legacyMigrationsFolder = await mkdtemp(join(tmpdir(), "family-hub-drizzle-"));
   const legacyMetaFolder = join(legacyMigrationsFolder, "meta");
+  const client = await databaseClient("family_hub_existing");
 
   try {
     await cp(join(migrationsFolder, "meta"), legacyMetaFolder, { recursive: true });
@@ -79,14 +107,11 @@ test("upgrades an existing Drizzle database through the Spending migration", asy
       `${JSON.stringify(journal, null, 2)}\n`,
     );
 
-    const client = await applyMigrations(legacyMigrationsFolder);
-    try {
-      await migrate(drizzle(client), { migrationsFolder });
-      await assertSpendingTablesExist(client);
-    } finally {
-      await client.close();
-    }
+    await applyMigrations(client, legacyMigrationsFolder);
+    await applyMigrations(client, migrationsFolder);
+    await assertSpendingTablesExist(client);
   } finally {
+    await client.end();
     await rm(legacyMigrationsFolder, { recursive: true, force: true });
   }
 });
