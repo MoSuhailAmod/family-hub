@@ -9,6 +9,7 @@ import {
   spendingTransactions,
 } from "@/db/schema";
 import { db } from "@/lib/db";
+import { SpendingImportDocumentPeriodConflictError } from "./spending-import";
 import type { SpendingImportPayload, SpendingImportRepository } from "./spending-import";
 
 export function createSpendingImportRepository<
@@ -49,7 +50,7 @@ export function createSpendingImportRepository<
           .limit(1);
 
         if (document && document.sourcePeriodKey !== period.sourcePeriodKey) {
-          throw new Error("A source document cannot describe multiple periods");
+          throw new SpendingImportDocumentPeriodConflictError();
         }
 
         if (!document) {

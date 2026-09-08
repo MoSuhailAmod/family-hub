@@ -119,6 +119,15 @@ export function contentSha256For(payload: SpendingImportPayload): string {
     .digest("hex");
 }
 
+export class SpendingImportDocumentPeriodConflictError extends Error {
+  readonly code = "SPENDING_IMPORT_DOCUMENT_PERIOD_CONFLICT";
+
+  constructor() {
+    super("A source document cannot describe multiple periods");
+    this.name = "SpendingImportDocumentPeriodConflictError";
+  }
+}
+
 export type SpendingImportRepository = {
   importSnapshot(
     payload: SpendingImportPayload,
@@ -128,6 +137,17 @@ export type SpendingImportRepository = {
 type ImportResult =
   | { success: true; status: "imported" | "duplicate" | "replaced" }
   | { success: false; code: "VALIDATION" | "PERSISTENCE"; error: string };
+
+function isDocumentPeriodConflict(
+  error: unknown,
+): error is { code: "SPENDING_IMPORT_DOCUMENT_PERIOD_CONFLICT" } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "SPENDING_IMPORT_DOCUMENT_PERIOD_CONFLICT"
+  );
+}
 
 export function createSpendingImportService(repository: SpendingImportRepository) {
   return {
@@ -153,7 +173,14 @@ export function createSpendingImportService(repository: SpendingImportRepository
 
       try {
         return { success: true, status: await repository.importSnapshot(payload) };
-      } catch {
+      } catch (error) {
+        if (isDocumentPeriodConflict(error)) {
+          return {
+            success: false,
+            code: "VALIDATION",
+            error: "source.documentId: A source document cannot describe multiple periods",
+          };
+        }
         return {
           success: false,
           code: "PERSISTENCE",

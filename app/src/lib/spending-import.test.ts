@@ -145,6 +145,45 @@ test("returns clear validation failures before writing an invalid import", async
   assert.deepEqual(store.snapshots(), []);
 });
 
+test("rejects document IDs reused for another period without replacing the existing snapshot", async () => {
+  const original = payload();
+  const store = repository([original]);
+  const collision = Object.assign(
+    new Error("A source document cannot describe multiple periods"),
+    { code: "SPENDING_IMPORT_DOCUMENT_PERIOD_CONFLICT" as const },
+  );
+  const collidingRepository: SpendingImportRepository = {
+    async importSnapshot(next) {
+      if (
+        next.source.producer === original.source.producer &&
+        next.source.documentId === original.source.documentId &&
+        next.period.sourcePeriodKey !== original.period.sourcePeriodKey
+      ) {
+        throw collision;
+      }
+      return store.importSnapshot(next);
+    },
+  };
+  const colliding = payload({
+    source: { ...original.source, revision: "2", contentSha256: "" },
+    period: {
+      ...original.period,
+      sourcePeriodKey: "2026-09",
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+    },
+  });
+
+  const result = await createSpendingImportService(collidingRepository).import(colliding);
+
+  assert.deepEqual(result, {
+    success: false,
+    code: "VALIDATION",
+    error: "source.documentId: A source document cannot describe multiple periods",
+  });
+  assert.deepEqual(store.snapshots(), [original]);
+});
+
 test("does not expose a partial replacement when persistence fails", async () => {
   const original = payload();
   const store = repository([original], new Error("database write failed"));
