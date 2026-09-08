@@ -32,19 +32,37 @@ export function createPostgresNotificationWorkerDependencies(dependencies: Pick<
       return dueEvents(result.rows, start, end);
     },
     async claim(intent) {
-      const result = await pool.query(
-        `INSERT INTO notification_deliveries (reminder_id, destination_id, occurrence_key, scheduled_for, status, attempt_count, last_attempted_at)
-         VALUES ($1, $2, $3, $4, 'sending', 1, NOW())
-         ON CONFLICT (reminder_id, occurrence_key, destination_id) DO UPDATE
-           SET status = 'sending', attempt_count = notification_deliveries.attempt_count + 1,
-               last_attempted_at = NOW(), next_attempt_at = NULL, updated_at = NOW()
-         WHERE notification_deliveries.status = 'retrying'
-           AND notification_deliveries.scheduled_for >= NOW() - INTERVAL '15 minutes'
-           AND (notification_deliveries.next_attempt_at IS NULL OR notification_deliveries.next_attempt_at <= NOW())
-         RETURNING id`,
+      const result = await pool.query<{ id: string; provider: string; target: string }>(
+        `WITH claimable AS (
+           SELECT r.id AS reminder_id, nd.id AS destination_id, nd.provider, nd.target
+           FROM calendar_event_reminders r
+           INNER JOIN event_participants ep ON ep.event_id = r.event_id
+           INNER JOIN notification_destinations nd
+             ON nd.family_member_id = ep.family_member_id
+           WHERE r.id = $1 AND nd.id = $2 AND nd.enabled = TRUE
+         ), claimed AS (
+           INSERT INTO notification_deliveries
+             (reminder_id, destination_id, occurrence_key, scheduled_for, status, attempt_count, last_attempted_at)
+           SELECT reminder_id, destination_id, $3, $4, 'sending', 1, NOW()
+           FROM claimable
+           ON CONFLICT (reminder_id, occurrence_key, destination_id) DO UPDATE
+             SET status = 'sending', attempt_count = notification_deliveries.attempt_count + 1,
+                 last_attempted_at = NOW(), next_attempt_at = NULL, updated_at = NOW()
+           WHERE notification_deliveries.scheduled_for >= NOW() - INTERVAL '15 minutes'
+             AND (
+               (notification_deliveries.status = 'retrying'
+                AND (notification_deliveries.next_attempt_at IS NULL OR notification_deliveries.next_attempt_at <= NOW()))
+               OR (notification_deliveries.status = 'sending'
+                   AND notification_deliveries.last_attempted_at <= NOW() - INTERVAL '2 minutes')
+             )
+           RETURNING destination_id
+         )
+         SELECT claimed.destination_id AS id, claimable.provider, claimable.target
+         FROM claimed
+         INNER JOIN claimable ON claimable.destination_id = claimed.destination_id`,
         [intent.reminderId, intent.destinationId, intent.occurrenceKey, intent.scheduledFor],
       );
-      return result.rowCount === 1;
+      return result.rows[0] ?? null;
     },
     async complete(intent, result) {
       const retryable = !result.success && ["network", "timeout", "provider"].includes(result.kind);

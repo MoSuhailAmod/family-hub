@@ -134,3 +134,21 @@ test("skips an event when current participant destinations are disabled or absen
   });
   assert.deepEqual(await worker.run(now), { delivered: 0, expired: 0, skipped: 0, failed: 0 });
 });
+
+test("uses the destination revalidated atomically at claim time", async () => {
+  const sent: string[] = [];
+  const worker = createNotificationWorker({
+    remindersDueBetween: async () => [reminder],
+    resolveRecipients: async () => [{ id: "destination-1", provider: "home_assistant", target: "stale_target" }],
+    claim: async () => ({ id: "destination-1", provider: "home_assistant", target: "current_target" }),
+    complete: async () => undefined,
+    expire: async () => undefined,
+    send: async (_notification, destination) => {
+      sent.push(destination.target);
+      return { success: true, provider: "home_assistant", status: 200 };
+    },
+  });
+
+  assert.equal((await worker.run(now)).delivered, 1);
+  assert.deepEqual(sent, ["current_target"]);
+});

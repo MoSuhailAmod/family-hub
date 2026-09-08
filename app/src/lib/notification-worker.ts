@@ -31,7 +31,11 @@ type DeliveryIntent = {
 export type NotificationWorkerDependencies = {
   remindersDueBetween(start: Date, end: Date): Promise<DueReminder[]>;
   resolveRecipients(participantIds: string[]): Promise<WorkerDestination[]>;
-  claim(intent: DeliveryIntent): Promise<boolean>;
+  /**
+   * Claims an authorized delivery and returns the destination as it exists at
+   * claim time. `true` is retained for lightweight test doubles.
+   */
+  claim(intent: DeliveryIntent): Promise<WorkerDestination | boolean | null>;
   complete(intent: DeliveryIntent, result: NotificationDeliveryResult): Promise<void>;
   expire(intent: DeliveryIntent): Promise<void>;
   send(notification: NotificationRequest, destination: WorkerDestination): Promise<NotificationDeliveryResult>;
@@ -84,8 +88,12 @@ export function createNotificationWorker(dependencies: NotificationWorkerDepende
           if (now.getTime() - scheduled.getTime() > REMINDER_CATCH_UP_MS) {
             await dependencies.expire(intent); summary.expired += 1; continue;
           }
-          if (!(await dependencies.claim(intent))) { summary.skipped += 1; continue; }
-          const result = await dependencies.send({ ...content(reminder), correlationId: `${reminder.id}:${intent.occurrenceKey}`, metadata: { event_id: reminder.eventId, reminder_id: reminder.id } }, destination);
+          const claimedDestination = await dependencies.claim(intent);
+          if (!claimedDestination) { summary.skipped += 1; continue; }
+          const destinationAtClaimTime = claimedDestination === true
+            ? destination
+            : claimedDestination;
+          const result = await dependencies.send({ ...content(reminder), correlationId: `${reminder.id}:${intent.occurrenceKey}`, metadata: { event_id: reminder.eventId, reminder_id: reminder.id } }, destinationAtClaimTime);
           await dependencies.complete(intent, result);
           if (result.success) summary.delivered += 1; else summary.failed += 1;
         }
