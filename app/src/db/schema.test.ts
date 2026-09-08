@@ -79,6 +79,126 @@ function constraintNames(table: Parameters<typeof getTableConfig>[0]) {
   };
 }
 
+function foreignKeyNames(table: Parameters<typeof getTableConfig>[0]) {
+  return getTableConfig(table)
+    .foreignKeys.map((foreignKey) => foreignKey.getName())
+    .sort();
+}
+
+test("defines flexible Spending source snapshots and future reporting mappings", () => {
+  assertTableColumns("spendingImports", "spending_imports", [
+    "id",
+    "importedAt",
+    "sourceContentSha256",
+    "sourceDocumentId",
+    "sourceIssuedAt",
+    "sourceProducer",
+    "sourceRevision",
+  ]);
+  assertTableColumns("spendingPeriods", "spending_periods", [
+    "currency",
+    "endDate",
+    "id",
+    "importId",
+    "sourcePeriodKey",
+    "sourceProducer",
+    "startDate",
+    "total",
+  ]);
+  assertTableColumns("spendingCategories", "spending_categories", [
+    "id",
+    "sourceCategoryKey",
+    "sourceProducer",
+  ]);
+  assertTableColumns("spendingPeriodCategories", "spending_period_categories", [
+    "categoryId",
+    "id",
+    "periodId",
+    "sourceCategoryName",
+    "sourceProducer",
+    "total",
+    "transactionsProvided",
+  ]);
+  assertTableColumns("spendingTransactions", "spending_transactions", [
+    "amount",
+    "description",
+    "id",
+    "periodCategoryId",
+    "periodId",
+    "sourceTransactionDate",
+    "sourceTransactionKey",
+  ]);
+  assertTableColumns("spendingReportingGroups", "spending_reporting_groups", [
+    "id",
+    "name",
+  ]);
+  assertTableColumns(
+    "spendingCategoryReportingGroups",
+    "spending_category_reporting_groups",
+    ["categoryId", "reportingGroupId"],
+  );
+
+  assert.deepEqual(constraintNames(schema.spendingImports), {
+    checks: [],
+    indexes: [
+      "spending_imports_id_producer_unique",
+      "spending_imports_source_document_index",
+      "spending_imports_source_revision_unique",
+    ],
+  });
+  assert.deepEqual(constraintNames(schema.spendingPeriods), {
+    checks: [],
+    indexes: [
+      "spending_periods_id_producer_unique",
+      "spending_periods_import_unique",
+      "spending_periods_source_period_unique",
+    ],
+  });
+  assert.deepEqual(constraintNames(schema.spendingCategories), {
+    checks: [],
+    indexes: [
+      "spending_categories_id_producer_unique",
+      "spending_categories_source_category_unique",
+    ],
+  });
+  assert.deepEqual(constraintNames(schema.spendingPeriodCategories), {
+    checks: [],
+    indexes: [
+      "spending_period_categories_category_id_index",
+      "spending_period_categories_id_period_unique",
+      "spending_period_categories_period_category_unique",
+      "spending_period_categories_period_id_index",
+    ],
+  });
+  assert.deepEqual(constraintNames(schema.spendingTransactions), {
+    checks: [],
+    indexes: [
+      "spending_transactions_period_category_id_index",
+      "spending_transactions_period_date_index",
+      "spending_transactions_period_source_transaction_unique",
+    ],
+  });
+  assert.deepEqual(foreignKeyNames(schema.spendingPeriods), [
+    "spending_periods_import_id_source_producer_spending_imports_fk",
+  ]);
+  assert.deepEqual(foreignKeyNames(schema.spendingPeriodCategories), [
+    "spending_period_categories_category_id_source_producer_spending_categories_fk",
+    "spending_period_categories_period_id_source_producer_spending_periods_fk",
+  ]);
+  assert.deepEqual(foreignKeyNames(schema.spendingTransactions), [
+    "spending_transactions_period_category_id_period_id_spending_period_categories_fk",
+  ]);
+
+  assert.deepEqual(constraintNames(schema.spendingReportingGroups), {
+    checks: [],
+    indexes: ["spending_reporting_groups_name_unique"],
+  });
+  assert.deepEqual(constraintNames(schema.spendingCategoryReportingGroups), {
+    checks: [],
+    indexes: ["spending_category_reporting_groups_category_group_unique"],
+  });
+});
+
 test("defines required notification constraints and idempotency indexes", () => {
   assert.deepEqual(constraintNames(schema.calendarEventReminders), {
     checks: ["calendar_event_reminders_offset_minutes_check"],
