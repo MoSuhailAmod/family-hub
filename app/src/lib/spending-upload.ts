@@ -1,5 +1,3 @@
-import { parseSpendingMarkdownDocument } from "./spending-markdown";
-
 export const MAX_SPENDING_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 export type SpendingUploadDocument = {
@@ -84,22 +82,59 @@ export function parseSpendingUploadDocument(content: string): SpendingUploadDocu
   try {
     document = JSON.parse(content);
   } catch {
-    throw new Error("The uploaded file must be valid JSON.");
+    throw new Error("JSON uploads must be valid Family Hub spending-import/v1 documents. Use your household .md report for the normal monthly workflow.");
   }
 
   if (!isDocument(document)) {
-    throw new Error("The uploaded file must use the supported spending-import/v1 document format.");
+    throw new Error("JSON uploads must be Family Hub spending-import/v1 documents. Use your household .md report for the normal monthly workflow.");
   }
   return document;
 }
 
-export { parseSpendingMarkdownDocument };
+export function isMarkdownSpendingUpload(fileName: string): boolean {
+  return /\.(?:md|markdown)$/i.test(fileName);
+}
+
+export async function prepareSpendingMarkdownUpload(
+  fetcher: typeof fetch,
+  content: string,
+): Promise<SpendingUploadDocument> {
+  let response: Response;
+  try {
+    response = await fetcher("/api/spending/imports/prepare", {
+      method: "POST",
+      headers: { "content-type": "text/markdown" },
+      body: content,
+    });
+  } catch {
+    throw new Error("Unable to prepare the Markdown Spending document. Please try again.");
+  }
+
+  let result: unknown;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("Family Hub could not prepare the Markdown Spending document. Please try again.");
+  }
+  if (!response.ok) {
+    const error = result && typeof result === "object" && "error" in result && typeof result.error === "string"
+      ? result.error
+      : "Family Hub could not prepare the Markdown Spending document. Please try again.";
+    throw new Error(error);
+  }
+  if (!isDocument(result)) {
+    throw new Error("Family Hub could not prepare the Markdown Spending document. Please try again.");
+  }
+  return result;
+}
 
 export async function parseSpendingUploadContent(
   content: string,
   fileName: string,
 ): Promise<SpendingUploadDocument> {
-  if (/\.(?:md|markdown)$/i.test(fileName)) return parseSpendingMarkdownDocument(content);
+  if (isMarkdownSpendingUpload(fileName)) {
+    throw new Error("Markdown Spending documents must be prepared by Family Hub before previewing.");
+  }
   if (/\.json$/i.test(fileName)) return parseSpendingUploadDocument(content);
   throw new Error("Choose a completed Spending document with a .md or .json filename.");
 }

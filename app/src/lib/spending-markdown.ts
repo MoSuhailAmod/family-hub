@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { SpendingUploadDocument } from "./spending-upload";
 
 const MARKDOWN_PRODUCER = "family-hub-household-spending-markdown";
@@ -22,9 +24,8 @@ function canonicalize(value: unknown): string {
     .join(",")}}`;
 }
 
-async function sha256(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function parseAmount(value: string, label: string): string {

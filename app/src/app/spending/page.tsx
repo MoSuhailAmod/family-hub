@@ -25,7 +25,9 @@ import {
   type SpendingTransactionSort,
 } from "@/lib/spending-client";
 import {
+  isMarkdownSpendingUpload,
   parseSpendingUploadContent,
+  prepareSpendingMarkdownUpload,
   submitSpendingUpload,
   summarizeSpendingUpload,
   type SpendingUploadDocument,
@@ -153,7 +155,10 @@ export default function SpendingPage() {
     setUploadDocument(null);
     setReplacementConfirmed(false);
     try {
-      const document = await parseSpendingUploadContent(await file.text(), file.name);
+      const content = await file.text();
+      const document = isMarkdownSpendingUpload(file.name)
+        ? await prepareSpendingMarkdownUpload(fetch, content)
+        : await parseSpendingUploadContent(content, file.name);
       if (uploadRequestId.current !== requestId) return;
       const response = await fetch(
         `/api/spending/imports?sourceProducer=${encodeURIComponent(document.source.producer)}`,
