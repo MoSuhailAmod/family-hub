@@ -20,6 +20,20 @@ export type SpendingCategory = {
   transactionsProvided: boolean;
 };
 
+export type SpendingReportingCategory = {
+  sourceProducer: string;
+  sourcePeriodKey: string;
+  reportingGroupId: string | null;
+  sourceCategoryKeys: string[];
+  name: string;
+  total: string;
+};
+
+export type SpendingReportingGroup = {
+  id: string;
+  name: string;
+};
+
 export type SpendingTransaction = {
   sourceProducer: string;
   sourcePeriodKey: string;
@@ -45,6 +59,17 @@ export type SpendingRepository = {
     sourceProducer: string,
     sourcePeriodKey: string,
   ) => Promise<SpendingCategory[]>;
+  listReportingCategories: (
+    sourceProducer: string,
+    sourcePeriodKey: string,
+  ) => Promise<SpendingReportingCategory[]>;
+  createReportingGroup: (name: string) => Promise<SpendingReportingGroup>;
+  renameReportingGroup: (id: string, name: string) => Promise<SpendingReportingGroup | null>;
+  setCategoryReportingGroup: (
+    sourceProducer: string,
+    sourceCategoryKey: string,
+    reportingGroupId: string | null,
+  ) => Promise<void>;
   listTransactions: (
     sourceProducer: string,
     sourcePeriodKey: string,
@@ -78,6 +103,10 @@ function compareCategories(a: SpendingCategory, b: SpendingCategory) {
   return a.name.localeCompare(b.name) || a.sourceCategoryKey.localeCompare(b.sourceCategoryKey);
 }
 
+function compareReportingCategories(a: SpendingReportingCategory, b: SpendingReportingCategory) {
+  return a.name.localeCompare(b.name) || (a.reportingGroupId ?? "").localeCompare(b.reportingGroupId ?? "");
+}
+
 export function createSpendingService(repository: SpendingRepository) {
   return {
     async listPeriods() {
@@ -104,6 +133,38 @@ export function createSpendingService(repository: SpendingRepository) {
           requiredKey(sourcePeriodKey, "sourcePeriodKey"),
         )
       ).sort(compareCategories);
+    },
+
+    async listReportingCategories(sourceProducer: string, sourcePeriodKey: string) {
+      return (
+        await repository.listReportingCategories(
+          requiredKey(sourceProducer, "sourceProducer"),
+          requiredKey(sourcePeriodKey, "sourcePeriodKey"),
+        )
+      ).sort(compareReportingCategories);
+    },
+
+    async createReportingGroup(name: string) {
+      return repository.createReportingGroup(requiredKey(name, "name"));
+    },
+
+    async renameReportingGroup(id: string, name: string) {
+      return repository.renameReportingGroup(
+        requiredKey(id, "reportingGroupId"),
+        requiredKey(name, "name"),
+      );
+    },
+
+    async setCategoryReportingGroup(
+      sourceProducer: string,
+      sourceCategoryKey: string,
+      reportingGroupId: string | null,
+    ) {
+      return repository.setCategoryReportingGroup(
+        requiredKey(sourceProducer, "sourceProducer"),
+        requiredKey(sourceCategoryKey, "sourceCategoryKey"),
+        reportingGroupId === null ? null : requiredKey(reportingGroupId, "reportingGroupId"),
+      );
     },
 
     async listTransactions(

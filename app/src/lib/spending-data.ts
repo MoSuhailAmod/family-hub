@@ -5,6 +5,8 @@ import type {
   SpendingImportMetadata,
   SpendingPeriod,
   SpendingRepository,
+  SpendingReportingCategory,
+  SpendingReportingGroup,
   SpendingTransaction,
 } from "./spending-service";
 
@@ -29,6 +31,17 @@ type CategoryRow = {
   total: string;
   transactions_provided: boolean;
 };
+
+type ReportingCategoryRow = {
+  source_producer: string;
+  source_period_key: string;
+  reporting_group_id: string | null;
+  source_category_keys: string[];
+  name: string;
+  total: string;
+};
+
+type ReportingGroupRow = { id: string; name: string };
 
 type TransactionRow = {
   source_producer: string;
@@ -65,6 +78,17 @@ function mapCategory(row: CategoryRow): SpendingCategory {
     name: row.name,
     total: row.total,
     transactionsProvided: row.transactions_provided,
+  };
+}
+
+function mapReportingCategory(row: ReportingCategoryRow): SpendingReportingCategory {
+  return {
+    sourceProducer: row.source_producer,
+    sourcePeriodKey: row.source_period_key,
+    reportingGroupId: row.reporting_group_id,
+    sourceCategoryKeys: row.source_category_keys,
+    name: row.name,
+    total: row.total,
   };
 }
 
@@ -128,6 +152,75 @@ export const spendingRepository: SpendingRepository = {
       [sourceProducer, sourcePeriodKey],
     );
     return result.rows.map(mapCategory);
+  },
+
+  async listReportingCategories(sourceProducer, sourcePeriodKey) {
+    const result = await pool.query<ReportingCategoryRow>(
+      `SELECT p.source_producer, p.source_period_key, rg.id::text AS reporting_group_id,
+              array_agg(c.source_category_key ORDER BY c.source_category_key) AS source_category_keys,
+              rg.name, SUM(pc.total) AS total
+       FROM spending_period_categories pc
+       INNER JOIN spending_periods p ON p.id = pc.period_id
+       INNER JOIN spending_categories c ON c.id = pc.category_id
+       INNER JOIN spending_category_reporting_groups crg ON crg.category_id = c.id
+       INNER JOIN spending_reporting_groups rg ON rg.id = crg.reporting_group_id
+       WHERE p.source_producer = $1 AND p.source_period_key = $2
+       GROUP BY p.source_producer, p.source_period_key, rg.id, rg.name
+       UNION ALL
+       SELECT p.source_producer, p.source_period_key, NULL AS reporting_group_id,
+              ARRAY[c.source_category_key] AS source_category_keys,
+              pc.source_category_name AS name, pc.total
+       FROM spending_period_categories pc
+       INNER JOIN spending_periods p ON p.id = pc.period_id
+       INNER JOIN spending_categories c ON c.id = pc.category_id
+       WHERE p.source_producer = $1 AND p.source_period_key = $2
+         AND NOT EXISTS (
+           SELECT 1 FROM spending_category_reporting_groups crg WHERE crg.category_id = c.id
+         )
+       ORDER BY name, reporting_group_id, source_category_keys`,
+      [sourceProducer, sourcePeriodKey],
+    );
+    return result.rows.map(mapReportingCategory);
+  },
+
+  async createReportingGroup(name) {
+    const result = await pool.query<ReportingGroupRow>(
+      `INSERT INTO spending_reporting_groups (name) VALUES ($1) RETURNING id::text, name`,
+      [name],
+    );
+    return result.rows[0] as SpendingReportingGroup;
+  },
+
+  async renameReportingGroup(id, name) {
+    const result = await pool.query<ReportingGroupRow>(
+      `UPDATE spending_reporting_groups SET name = $2 WHERE id = $1::uuid RETURNING id::text, name`,
+      [id, name],
+    );
+    return (result.rows[0] as SpendingReportingGroup | undefined) ?? null;
+  },
+
+  async setCategoryReportingGroup(sourceProducer, sourceCategoryKey, reportingGroupId) {
+    if (reportingGroupId === null) {
+      await pool.query(
+        `DELETE FROM spending_category_reporting_groups crg
+         USING spending_categories c
+         WHERE crg.category_id = c.id AND c.source_producer = $1 AND c.source_category_key = $2`,
+        [sourceProducer, sourceCategoryKey],
+      );
+      return;
+    }
+
+    await pool.query(
+      `WITH category AS (
+         SELECT id FROM spending_categories WHERE source_producer = $1 AND source_category_key = $2
+       ), removed AS (
+         DELETE FROM spending_category_reporting_groups
+         WHERE category_id IN (SELECT id FROM category)
+       )
+       INSERT INTO spending_category_reporting_groups (category_id, reporting_group_id)
+       SELECT id, $3::uuid FROM category`,
+      [sourceProducer, sourceCategoryKey, reportingGroupId],
+    );
   },
 
   async listTransactions(sourceProducer, sourcePeriodKey, sourceCategoryKey) {

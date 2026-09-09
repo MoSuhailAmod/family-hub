@@ -3,6 +3,8 @@ import type {
   SpendingCategory,
   SpendingImportMetadata,
   SpendingPeriod,
+  SpendingReportingCategory,
+  SpendingReportingGroup,
   SpendingTransaction,
 } from "./spending-service";
 
@@ -11,6 +13,17 @@ export type SpendingService = {
   getLatestPeriod: (sourceProducer?: string) => Promise<SpendingPeriod | null>;
   getPeriod: (sourceProducer: string, sourcePeriodKey: string) => Promise<SpendingPeriod | null>;
   listCategories: (sourceProducer: string, sourcePeriodKey: string) => Promise<SpendingCategory[]>;
+  listReportingCategories: (
+    sourceProducer: string,
+    sourcePeriodKey: string,
+  ) => Promise<SpendingReportingCategory[]>;
+  createReportingGroup: (name: string) => Promise<SpendingReportingGroup>;
+  renameReportingGroup: (id: string, name: string) => Promise<SpendingReportingGroup | null>;
+  setCategoryReportingGroup: (
+    sourceProducer: string,
+    sourceCategoryKey: string,
+    reportingGroupId: string | null,
+  ) => Promise<void>;
   listTransactions: (
     sourceProducer: string,
     sourcePeriodKey: string,
@@ -87,6 +100,53 @@ export function createSpendingRouteHandlers(service: SpendingService) {
         return Response.json({ categories: await service.listCategories(sourceProducer, sourcePeriodKey) });
       } catch (error) {
         return errorResponse(error, "load");
+      }
+    },
+
+    async listReportingCategories(sourceProducer: string, sourcePeriodKey: string) {
+      try {
+        const period = await service.getPeriod(
+          requiredKey(sourceProducer, "sourceProducer"),
+          requiredKey(sourcePeriodKey, "sourcePeriodKey"),
+        );
+        if (!period) return periodNotFound();
+        return Response.json({
+          categories: await service.listReportingCategories(sourceProducer, sourcePeriodKey),
+        });
+      } catch (error) {
+        return errorResponse(error, "load");
+      }
+    },
+
+    async createReportingGroup(name: string) {
+      try {
+        return Response.json({ reportingGroup: await service.createReportingGroup(name) }, { status: 201 });
+      } catch (error) {
+        return errorResponse(error, "create");
+      }
+    },
+
+    async renameReportingGroup(id: string, name: string) {
+      try {
+        const reportingGroup = await service.renameReportingGroup(id, name);
+        return reportingGroup
+          ? Response.json({ reportingGroup })
+          : Response.json({ error: "Spending reporting group not found" }, { status: 404 });
+      } catch (error) {
+        return errorResponse(error, "update");
+      }
+    },
+
+    async setCategoryReportingGroup(
+      sourceProducer: string,
+      sourceCategoryKey: string,
+      reportingGroupId: string | null,
+    ) {
+      try {
+        await service.setCategoryReportingGroup(sourceProducer, sourceCategoryKey, reportingGroupId);
+        return new Response(null, { status: 204 });
+      } catch (error) {
+        return errorResponse(error, "update");
       }
     },
 

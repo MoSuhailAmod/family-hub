@@ -6,6 +6,8 @@ import {
   type SpendingImportMetadata,
   type SpendingPeriod,
   type SpendingRepository,
+  type SpendingReportingCategory,
+  type SpendingReportingGroup,
   type SpendingTransaction,
   createSpendingService,
 } from "./spending-service";
@@ -48,6 +50,22 @@ const transaction: SpendingTransaction = {
   description: "Example Market",
   amount: "99.99",
 };
+const shopping: SpendingReportingCategory = {
+  sourceProducer: august.sourceProducer,
+  sourcePeriodKey: august.sourcePeriodKey,
+  reportingGroupId: "shopping-group",
+  sourceCategoryKeys: ["clothing", "retail-online"],
+  name: "Shopping",
+  total: "100.00",
+};
+const unmappedGroceries: SpendingReportingCategory = {
+  sourceProducer: august.sourceProducer,
+  sourcePeriodKey: august.sourcePeriodKey,
+  reportingGroupId: null,
+  sourceCategoryKeys: [groceries.sourceCategoryKey],
+  name: groceries.name,
+  total: groceries.total,
+};
 const metadata: SpendingImportMetadata = {
   ...august,
   contentSha256: "a".repeat(64),
@@ -66,6 +84,13 @@ function repository(): SpendingRepository {
       sourceProducer === august.sourceProducer && sourcePeriodKey === august.sourcePeriodKey
         ? [groceries]
         : [],
+    listReportingCategories: async (sourceProducer, sourcePeriodKey) =>
+      sourceProducer === august.sourceProducer && sourcePeriodKey === august.sourcePeriodKey
+        ? [shopping, unmappedGroceries]
+        : [],
+    createReportingGroup: async (name) => ({ id: "reporting-group", name }),
+    renameReportingGroup: async (id, name) => ({ id, name }),
+    setCategoryReportingGroup: async () => {},
     listTransactions: async (sourceProducer, sourcePeriodKey, sourceCategoryKey) =>
       sourceProducer === august.sourceProducer &&
       sourcePeriodKey === august.sourcePeriodKey &&
@@ -107,6 +132,57 @@ test("returns dynamic category totals and selected category transactions without
     ),
     [transaction],
   );
+});
+
+test("returns raw source categories separately from current normalised reporting groups", async () => {
+  const service = createSpendingService(repository());
+
+  assert.deepEqual(await service.listCategories(august.sourceProducer, august.sourcePeriodKey), [
+    groceries,
+  ]);
+  assert.deepEqual(
+    await service.listReportingCategories(august.sourceProducer, august.sourcePeriodKey),
+    [unmappedGroceries, shopping],
+  );
+});
+
+test("manages current reporting groups without changing imported source categories", async () => {
+  const calls: unknown[][] = [];
+  const service = createSpendingService({
+    ...repository(),
+    createReportingGroup: async (name): Promise<SpendingReportingGroup> => {
+      calls.push(["create", name]);
+      return { id: "shopping-group", name };
+    },
+    renameReportingGroup: async (id, name): Promise<SpendingReportingGroup | null> => {
+      calls.push(["rename", id, name]);
+      return id === "shopping-group" ? { id, name } : null;
+    },
+    setCategoryReportingGroup: async (sourceProducer, sourceCategoryKey, reportingGroupId) => {
+      calls.push(["map", sourceProducer, sourceCategoryKey, reportingGroupId]);
+    },
+  });
+
+  assert.deepEqual(await service.createReportingGroup("Shopping"), {
+    id: "shopping-group",
+    name: "Shopping",
+  });
+  assert.deepEqual(await service.renameReportingGroup("shopping-group", "Household Shopping"), {
+    id: "shopping-group",
+    name: "Household Shopping",
+  });
+  await service.setCategoryReportingGroup(august.sourceProducer, "clothing", "shopping-group");
+  await service.setCategoryReportingGroup(august.sourceProducer, "clothing", null);
+
+  assert.deepEqual(calls, [
+    ["create", "Shopping"],
+    ["rename", "shopping-group", "Household Shopping"],
+    ["map", august.sourceProducer, "clothing", "shopping-group"],
+    ["map", august.sourceProducer, "clothing", null],
+  ]);
+  assert.deepEqual(await service.listCategories(august.sourceProducer, august.sourcePeriodKey), [
+    groceries,
+  ]);
 });
 
 test("preserves repository category-history chronology when source period keys are not sortable dates", async () => {
