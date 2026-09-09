@@ -50,6 +50,7 @@ type CalendarDisplayEvent = {
     location: string | null;
     category:
       CalendarOccurrence["category"];
+    reminderOffsets: number[];
   };
 };
 
@@ -242,6 +243,7 @@ export default function CalendarPage() {
                   event.description,
                 location:
                   event.location,
+                reminderOffsets: event.reminderOffsets ?? [],
 
                 // Category remains available
                 // to the UI but its colour is

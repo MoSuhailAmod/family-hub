@@ -7,6 +7,7 @@ import {
   eventFormValuesFromPersistedEvent,
   type EventFormValues,
 } from "@/lib/calendar-form";
+import { reminderPresetOptions } from "@/lib/calendar-reminders";
 import type { EventCategory, FamilyMember } from "@/lib/calendar-types";
 
 type PersistedEvent = {
@@ -19,6 +20,7 @@ type PersistedEvent = {
   location: string | null;
   description: string | null;
   recurrenceRule: string | null;
+  reminderOffsets: number[];
 };
 
 type Props = {
@@ -104,6 +106,17 @@ export default function EditEventModal({
       selectedMembers.has(memberId)
         ? form.participantIds.filter((id) => id !== memberId)
         : [...form.participantIds, memberId],
+    );
+  }
+
+  function toggleReminder(offsetMinutes: number) {
+    if (!form) return;
+    const selected = form.reminderOffsets ?? [];
+    update(
+      "reminderOffsets",
+      selected.includes(offsetMinutes)
+        ? selected.filter((offset) => offset !== offsetMinutes)
+        : [...selected, offsetMinutes],
     );
   }
 
@@ -208,6 +221,12 @@ export default function EditEventModal({
               <legend>Family members</legend>
               <div className="participant-options">
                 {members.map((member) => <label key={member.id} className="participant-option"><input type="checkbox" checked={selectedMembers.has(member.id)} onChange={() => toggleParticipant(member.id)} /><span style={{ background: member.color }} className="member-color-dot" />{member.name}</label>)}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Reminders</legend>
+              <div className="reminder-options">
+                {reminderPresetOptions.map((reminder) => <label key={reminder.offsetMinutes} className="reminder-option"><input type="checkbox" checked={(form.reminderOffsets ?? []).includes(reminder.offsetMinutes)} onChange={() => toggleReminder(reminder.offsetMinutes)} />{reminder.label}</label>)}
               </div>
             </fieldset>
             <label>Category<select value={form.categoryId ?? ""} onChange={(event) => update("categoryId", event.target.value || null)}><option value="">No category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>

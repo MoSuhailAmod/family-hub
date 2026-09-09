@@ -12,6 +12,7 @@ export type EventFormValues = {
   location: string;
   description: string;
   recurrenceRule?: string | null;
+  reminderOffsets?: number[];
 };
 
 type PersistedEventForForm = {
@@ -24,6 +25,7 @@ type PersistedEventForForm = {
   location: string | null;
   description: string | null;
   recurrenceRule: string | null;
+  reminderOffsets?: number[];
 };
 
 export type CreateEventPayload = {
@@ -36,6 +38,7 @@ export type CreateEventPayload = {
   location: string;
   description: string;
   recurrenceRule: string | null;
+  reminderOffsets: number[];
 };
 
 export type CreateEventPayloadResult =
@@ -95,6 +98,7 @@ export function eventFormValuesFromPersistedEvent(
     location: event.location ?? "",
     description: event.description ?? "",
     recurrenceRule: event.recurrenceRule,
+    reminderOffsets: event.reminderOffsets ?? [],
   };
 }
 
@@ -130,6 +134,7 @@ export function createEventPayload(
       location: values.location.trim(),
       description: values.description.trim(),
       recurrenceRule: values.recurrenceRule?.trim() || null,
+      reminderOffsets: values.reminderOffsets ?? [],
     },
   };
 }

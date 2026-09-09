@@ -7,6 +7,7 @@ import {
   Repeat,
   Calendar,
   Clock,
+  Bell,
   Users,
   FileText,
   Pencil,
@@ -15,6 +16,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { canEditCalendarEvent } from "@/lib/calendar-edit";
+import { formatReminderOffsets } from "@/lib/calendar-reminders";
 import {
   canDeleteCalendarEvent,
   deleteCalendarEvent,
@@ -41,6 +43,7 @@ type CalendarDisplayEvent = {
     location: string | null;
     category:
       CalendarOccurrence["category"];
+    reminderOffsets: number[];
   };
 };
 
@@ -175,6 +178,7 @@ export default function EventDetailsModal({
       ? allDayInclusiveEnd(event)
       : startToDate(event.end);
   const participants = event.extendedProps.participants;
+  const reminders = formatReminderOffsets(event.extendedProps.reminderOffsets);
 
   const showAllDay = isAllDay(event);
   const multiDay = isMultiDay(event);
@@ -335,6 +339,17 @@ export default function EventDetailsModal({
               <span className="event-details-category">
                 {event.extendedProps.category.name}
               </span>
+            </section>
+          ) : null}
+
+          {/* Reminders */}
+          {reminders.length > 0 ? (
+            <section className="event-details-section">
+              <div className="event-details-section-label">
+                <Bell size={14} />
+                <span>Reminders</span>
+              </div>
+              <p className="event-details-reminders">{reminders.join(", ")}</p>
             </section>
           ) : null}
 
