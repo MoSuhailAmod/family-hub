@@ -5,6 +5,7 @@ import {
   Home,
   House,
   ShoppingCart,
+  WalletCards,
   Wifi,
 } from "lucide-react";
 
@@ -27,6 +28,11 @@ const navigation = [
     href: "/shopping",
     label: "Shopping",
     icon: ShoppingCart,
+  },
+  {
+    href: "/spending",
+    label: "Spending",
+    icon: WalletCards,
   },
 ];
 
