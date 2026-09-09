@@ -65,6 +65,40 @@ async function reconcile(snapshot: SpendingReconciliationPayload) {
   return response.json();
 }
 
+test("finalizes a cutoff-dated Markdown partial under its stable reporting-period key", async () => {
+  const sourceMarkdown = await readFile(join(fixtureDirectory, "partial-cutoff-source.md"), "utf8");
+  assert.match(sourceMarkdown, /28 Aug 2026 - 3 Sep 2026 \(partial period\)/);
+  assert.match(sourceMarkdown, /Reporting period: 28 Aug 2026 - 27 Sep 2026/);
+
+  const partial = await fixture("partial-cutoff.json");
+  const completed = await fixture("partial-finalized.json");
+  assert.equal(partial.periods[0].sourcePeriodKey, "2026-08-28-to-2026-09-27");
+  assert.equal(completed.periods[0].sourcePeriodKey, partial.periods[0].sourcePeriodKey);
+
+  assert.deepEqual(await reconcile(partial), {
+    success: true,
+    summary: {
+      processed: 1,
+      unchanged: [],
+      updated: [],
+      inserted: [],
+      partialRefreshed: ["2026-08-28-to-2026-09-27"],
+      completedFromPartial: [],
+    },
+  });
+  assert.deepEqual(await reconcile(completed), {
+    success: true,
+    summary: {
+      processed: 1,
+      unchanged: [],
+      updated: [],
+      inserted: [],
+      partialRefreshed: [],
+      completedFromPartial: ["2026-08-28-to-2026-09-27"],
+    },
+  });
+});
+
 test("reconciles sanitized cumulative ChatGPT snapshots through the HTTP adapter without duplicate history", async () => {
   const initial = await fixture("initial.json");
   assert.deepEqual(await reconcile(initial), {
