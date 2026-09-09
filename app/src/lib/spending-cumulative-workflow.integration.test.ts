@@ -106,6 +106,32 @@ test("finalizes a cutoff-dated Markdown partial under its stable reporting-perio
   });
 });
 
+test("preserves v1 category and source-line keys across a corrected cumulative revision", async () => {
+  const partial = await fixture("partial-cutoff.json");
+  const completed = await fixture("partial-finalized.json");
+  const partialCategories = new Map(partial.periods[0].categories.map((category) => [category.sourceCategoryKey, category]));
+  const completedCategories = new Map(completed.periods[0].categories.map((category) => [category.sourceCategoryKey, category]));
+
+  assert.deepEqual([...completedCategories.keys()].sort(), [...partialCategories.keys()].sort());
+
+  const partialMaintenance = partialCategories.get("home-maintenance");
+  const completedMaintenance = completedCategories.get("home-maintenance");
+  assert.ok(partialMaintenance);
+  assert.ok(completedMaintenance);
+  const partialAssumption = partialMaintenance.lines?.find((line) => line.lineType === "assumption");
+  const completedAssumption = completedMaintenance.lines?.find((line) => line.lineType === "assumption");
+  assert.ok(partialAssumption);
+  assert.ok(completedAssumption);
+  assert.equal(completedAssumption.sourceTransactionKey, partialAssumption.sourceTransactionKey);
+  assert.notEqual(completedAssumption.description, partialAssumption.description);
+
+  const partialGroceries = partialCategories.get("groceries");
+  const completedGroceries = completedCategories.get("groceries");
+  assert.ok(partialGroceries);
+  assert.ok(completedGroceries);
+  assert.equal(completedGroceries.lines?.[0]?.sourceTransactionKey, partialGroceries.lines?.[0]?.sourceTransactionKey);
+});
+
 test("reconciles sanitized cumulative ChatGPT snapshots through the HTTP adapter without duplicate history", async () => {
   const initial = await fixture("initial.json");
   assert.deepEqual(await reconcile(initial), {

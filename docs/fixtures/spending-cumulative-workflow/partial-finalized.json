@@ -6,7 +6,7 @@
     "revision": "completed-at-2026-09-27",
     "issuedAt": "2026-09-27T18:00:00Z",
     "importedBy": "chatgpt",
-    "contentSha256": "caa6210e6f9f99df7200fd3fa0692db4bb06a97afba6641cf5aaa9c8a1c7501a"
+    "contentSha256": "d1a3df4605b17fc359498c9a087d73e12742d988f62adb03589c49c9d7525d3c"
   },
   "periods": [
     {
@@ -46,7 +46,7 @@
             {
               "sourceTransactionKey": "opening-maintenance-provision",
               "lineType": "assumption",
-              "description": "Sanitized opening maintenance provision",
+              "description": "Sanitized opening maintenance provision (corrected wording)",
               "amount": "80.00"
             },
             {
