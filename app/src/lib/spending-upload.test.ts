@@ -52,6 +52,14 @@ const markdownDocument = `# Household Spending Budget
 
 This cumulative summary is explanatory only and must not be imported as a period.
 
+## 28 Jun 2026 - 27 Jul 2026
+
+### <a id="p4-groceries"></a>Groceries
+- 01 Jul 2026 -- Historical Market -- R50.00
+**Total Groceries = R50.00**
+
+### <a id="p4-total"></a>TOTAL SPENDING THIS PERIOD = R50.00
+
 ## 28 Jul 2026 - 27 Aug 2026
 
 ### <a id="p5-bank-charges"></a>Bank Charges
@@ -64,7 +72,12 @@ This cumulative summary is explanatory only and must not be imported as a period
 - 21 Aug 2026 -- Example Foods -- R4,892.20
 **Total Groceries = R5,700.00**
 
-### <a id="p5-total"></a>TOTAL SPENDING THIS PERIOD = R6,218.81
+### <a id="p5-holiday"></a>Holiday
+- Monthly Holiday Savings -- R1,500.00
+- 22 Aug 2026 -- Cabin booking -- R2,000.00
+**Total Holiday = R3,000.00**
+
+### <a id="p5-total"></a>TOTAL SPENDING THIS PERIOD = R9,218.81
 
 ### Excluded
 - 20 Aug 2026 -- Reimbursement -- R10.00
@@ -146,7 +159,7 @@ test("submits the exact uploaded payload to the Spending import endpoint", async
   }]);
 });
 
-test("adapts the real household Markdown structure, ignoring summary, excluded, and partial periods", async () => {
+test("selects the newest completed period from a cumulative household report", async () => {
   const payload = await parseSpendingMarkdownDocument(markdownDocument);
 
   assert.deepEqual(payload.period, {
@@ -154,7 +167,7 @@ test("adapts the real household Markdown structure, ignoring summary, excluded, 
     startDate: "2026-07-28",
     endDate: "2026-08-27",
     currency: "ZAR",
-    total: "6218.81",
+    total: "9218.81",
   });
   assert.deepEqual(payload.categories, [
     {
@@ -175,6 +188,14 @@ test("adapts the real household Markdown structure, ignoring summary, excluded, 
         { sourceTransactionKey: "groceries-2026-08-21-2", date: "2026-08-21", description: "Example Foods", amount: "4892.20" },
       ],
     },
+    {
+      sourceCategoryKey: "holiday",
+      name: "Holiday",
+      total: "3000.00",
+      transactions: [
+        { sourceTransactionKey: "holiday-2026-08-22-1", date: "2026-08-22", description: "Cabin booking", amount: "2000.00" },
+      ],
+    },
   ]);
   assert.equal(payload.source.producer, "family-hub-household-spending-markdown");
   assert.equal(payload.source.documentId, "household-spending-2026-07-28-to-2026-08-27");
@@ -183,23 +204,37 @@ test("adapts the real household Markdown structure, ignoring summary, excluded, 
   assert.equal(payload.source.contentSha256, contentSha256For(payload as SpendingImportPayload));
 });
 
-test("fails clearly when the report has more than one completed period", async () => {
-  const secondComplete = markdownDocument.replace("## 28 Aug 2026 - 27 Sep 2026 (PARTIAL)", "## 28 Aug 2026 - 27 Sep 2026");
-  await assert.rejects(() => parseSpendingMarkdownDocument(secondComplete), /more than one completed period/i);
+test("does not import a trailing partial period", async () => {
+  const payload = await parseSpendingMarkdownDocument(markdownDocument);
+  assert.equal(payload.period.sourcePeriodKey, "2026-07-28-to-2026-08-27");
+  assert.notEqual(payload.period.sourcePeriodKey, "2026-08-28-to-2026-09-27");
 });
 
 test("rejects a report with no completed period or missing required totals", async () => {
+  const allPartial = markdownDocument
+    .replace("## 28 Jun 2026 - 27 Jul 2026", "## 28 Jun 2026 - 27 Jul 2026 (PARTIAL)")
+    .replace("## 28 Jul 2026 - 27 Aug 2026", "## 28 Jul 2026 - 27 Aug 2026 (PARTIAL)");
   await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("## 28 Jul 2026 - 27 Aug 2026", "## 28 Jul 2026 - 27 Aug 2026 (PARTIAL)")),
+    () => parseSpendingMarkdownDocument(allPartial),
     /completed .*period/i,
   );
   await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("TOTAL SPENDING THIS PERIOD = R6,218.81", "Total pending")),
+    () => parseSpendingMarkdownDocument(markdownDocument.replace("TOTAL SPENDING THIS PERIOD = R9,218.81", "Total pending")),
     /final total/i,
   );
   await assert.rejects(
     () => parseSpendingMarkdownDocument(markdownDocument.replace("**Total Groceries = R5,700.00**", "")),
     /final total for category/i,
+  );
+});
+
+test("rejects a malformed dated transaction while allowing non-dated category bullets", async () => {
+  await assert.rejects(
+    () => parseSpendingMarkdownDocument(markdownDocument.replace(
+      "- 30 Jul 2026 -- Service Fees -- R0.96",
+      "- 30 Jul 2026 -- Service Fees -- amount pending",
+    )),
+    /transaction rows/i,
   );
 });
 
@@ -214,22 +249,26 @@ test("selects Markdown and JSON documents by filename without changing the JSON 
   );
 });
 
-test("uses stable source and category identities while recognizing revisions for the same period", async () => {
+test("uses selected-period identity so unrelated cumulative content does not create revisions", async () => {
   const exactRepeat = await parseSpendingMarkdownDocument(markdownDocument);
   const original = await parseSpendingMarkdownDocument(markdownDocument);
-  const revised = await parseSpendingMarkdownDocument(markdownDocument.replace("R6,218.81", "R6,200.00"));
-  const nextMonth = await parseSpendingMarkdownDocument(markdownDocument
-    .replaceAll("28 Jul 2026 - 27 Aug 2026", "28 Aug 2026 - 27 Sep 2026")
-    .replaceAll("30 Jul 2026", "30 Aug 2026")
-    .replaceAll("15 Aug 2026", "15 Sep 2026")
-    .replaceAll("01 Aug 2026", "01 Sep 2026")
-    .replaceAll("21 Aug 2026", "21 Sep 2026"));
+  const summaryChanged = await parseSpendingMarkdownDocument(markdownDocument.replace(
+    "This cumulative summary is explanatory only and must not be imported as a period.",
+    "This updated cumulative summary is still explanatory only.",
+  ));
+  const partialChanged = await parseSpendingMarkdownDocument(markdownDocument.replace(
+    "Current-month expense -- R100.00",
+    "Updated current-month expense -- R101.00",
+  ));
+  const selectedPeriodRevised = await parseSpendingMarkdownDocument(markdownDocument.replace("R9,218.81", "R9,200.00"));
 
   assert.equal(exactRepeat.source.contentSha256, original.source.contentSha256);
   assert.equal(exactRepeat.source.revision, original.source.revision);
-  assert.equal(revised.source.documentId, original.source.documentId);
-  assert.notEqual(revised.source.revision, original.source.revision);
-  assert.notEqual(revised.source.contentSha256, original.source.contentSha256);
-  assert.equal(nextMonth.categories[0].sourceCategoryKey, original.categories[0].sourceCategoryKey);
-  assert.notEqual(nextMonth.source.documentId, original.source.documentId);
+  assert.equal(summaryChanged.source.revision, original.source.revision);
+  assert.equal(summaryChanged.source.contentSha256, original.source.contentSha256);
+  assert.equal(partialChanged.source.revision, original.source.revision);
+  assert.equal(partialChanged.source.contentSha256, original.source.contentSha256);
+  assert.equal(selectedPeriodRevised.source.documentId, original.source.documentId);
+  assert.notEqual(selectedPeriodRevised.source.revision, original.source.revision);
+  assert.notEqual(selectedPeriodRevised.source.contentSha256, original.source.contentSha256);
 });

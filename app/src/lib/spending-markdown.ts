@@ -96,23 +96,29 @@ function categoryHeadingName(heading: string): string {
 
 function parseTransactions(content: string, categoryKey: string): Category["transactions"] {
   const bullets = content.split("\n").filter((line) => /^\s*-\s+/.test(line));
-  if (bullets.length === 0) return undefined;
+  const transactions: NonNullable<Category["transactions"]> = [];
 
-  return bullets.map((line, index) => {
+  for (const line of bullets) {
     const match = line.match(/^\s*-\s*(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\s+--\s+(.+)\s+--\s+((?:ZAR|R)\s*[+-]?[\d,]+(?:\.\d+)?)\s*$/i);
     if (!match) {
-      throw new Error(`Transaction rows for category "${categoryKey}" must use Date -- Description -- Amount.`);
+      if (/^\s*-\s*\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\b/i.test(line)) {
+        throw new Error(`Transaction rows for category "${categoryKey}" must use Date -- Description -- Amount.`);
+      }
+      continue;
     }
+
     const description = match[2].trim();
     if (!description) throw new Error(`Transactions for category "${categoryKey}" must include a description.`);
     const date = parseHumanDate(match[1], `Transaction date in category "${categoryKey}"`);
-    return {
-      sourceTransactionKey: `${categoryKey}-${date}-${index + 1}`,
+    transactions.push({
+      sourceTransactionKey: `${categoryKey}-${date}-${transactions.length + 1}`,
       date,
       description,
       amount: parseAmount(match[3], `Transaction amount in category "${categoryKey}"`),
-    };
-  });
+    });
+  }
+
+  return transactions.length === 0 ? undefined : transactions;
 }
 
 function parseCategories(content: string): Category[] {
@@ -174,11 +180,7 @@ export async function parseSpendingMarkdownDocument(content: string): Promise<Sp
   if (completed.length === 0) {
     throw new Error("The Markdown document does not contain a completed reporting period; mark in-progress periods as PARTIAL.");
   }
-  if (completed.length > 1) {
-    throw new Error("The Markdown document contains more than one completed period; upload a report with one completed period or mark non-final periods as PARTIAL.");
-  }
-
-  const selected = completed[0];
+  const selected = completed.at(-1)!;
   const periodKey = `${selected.startDate}-to-${selected.endDate}`;
   const total = parseAmount(
     requireSingleMatch(
@@ -188,16 +190,8 @@ export async function parseSpendingMarkdownDocument(content: string): Promise<Sp
     ),
     "Final total for the completed reporting period",
   );
-  const source = {
-    producer: MARKDOWN_PRODUCER,
-    documentId: `household-spending-${periodKey}`,
-    revision: `markdown-${await sha256(content)}`,
-    issuedAt: issuedAtAfter(selected.endDate),
-    contentSha256: "",
-  };
-  const document: SpendingUploadDocument = {
-    schemaVersion: "spending-import/v1",
-    source,
+  const categories = parseCategories(selected.content);
+  const selectedPeriodSnapshot = {
     period: {
       sourcePeriodKey: periodKey,
       startDate: selected.startDate,
@@ -205,7 +199,20 @@ export async function parseSpendingMarkdownDocument(content: string): Promise<Sp
       currency: "ZAR",
       total,
     },
-    categories: parseCategories(selected.content),
+    categories,
+  };
+  const source = {
+    producer: MARKDOWN_PRODUCER,
+    documentId: `household-spending-${periodKey}`,
+    revision: `markdown-${await sha256(canonicalize(selectedPeriodSnapshot))}`,
+    issuedAt: issuedAtAfter(selected.endDate),
+    contentSha256: "",
+  };
+  const document: SpendingUploadDocument = {
+    schemaVersion: "spending-import/v1",
+    source,
+    period: selectedPeriodSnapshot.period,
+    categories,
   };
   const hashableSource = {
     producer: document.source.producer,

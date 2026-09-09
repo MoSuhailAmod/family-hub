@@ -44,9 +44,9 @@ Requirements:
 
 - The document has exactly one `# Household Spending Budget` heading.
 - A period heading uses `## <start date> - <end date>`, with report dates such as `28 Jul 2026`.
-- The document must contain exactly one completed period. A non-final/in-progress period must be explicitly marked `PARTIAL` in its heading. If more than one completed period is present, Family Hub stops with a clear validation error instead of guessing which period to import.
+- The document may contain completed historical periods plus a trailing `PARTIAL` in-progress period. Family Hub selects the newest completed period in document order and never imports a `PARTIAL` period.
 - The completed period has anchored (or plain) `###` category headings, an explicit `**Total <category> = R...**` for every category, and one `TOTAL SPENDING THIS PERIOD = R...` heading.
-- Transaction detail uses `- <date> -- <description> -- R<amount>` bullet rows. Rows are retained as supplied; they are never summed to validate or replace the category total.
+- Dated transaction detail uses `- <date> -- <description> -- R<amount>` bullet rows. Dated rows are retained as supplied and are never summed to validate or replace the category total. Other non-dated category bullets are not invented as transactions and do not prevent importing the explicit authoritative category total.
 - `### Excluded` and its contents, plus the cumulative summary section, are ignored. They are never treated as spending.
 - Amounts may use thousands commas and an `R` or `ZAR` prefix. Missing/duplicate totals, malformed transaction rows, unsupported dates, and other ambiguous values are rejected rather than coerced.
 
@@ -57,7 +57,7 @@ The adapter generates the source fields necessary for the existing import model;
 - `source.producer` is always `family-hub-household-spending-markdown`.
 - `period.sourcePeriodKey` is `<start ISO date>-to-<end ISO date>` from the selected completed report heading, for example `2026-07-28-to-2026-08-27`.
 - `source.documentId` is `household-spending-<sourcePeriodKey>`, keeping amendments for one logical report period together.
-- `source.revision` is `markdown-<sha256 of exact Markdown content>`. The same file is an identical revision; changed Markdown becomes a new revision for the same period.
+- `source.revision` is `markdown-<sha256 of the canonical selected-period payload>`. Changes to unrelated cumulative summary, historical, or `PARTIAL` content leave the selected period identity unchanged; changes to the selected period become a new revision.
 - `source.issuedAt` is deterministically midnight UTC on the day after the selected period end date.
 - `source.contentSha256` is SHA-256 of the canonical `spending-import/v1` payload with `source.contentSha256` omitted, matching the import contract.
 - `category.sourceCategoryKey` is the stable lowercase, punctuation-normalized category heading (for example, `Pet care` becomes `pet-care`).
