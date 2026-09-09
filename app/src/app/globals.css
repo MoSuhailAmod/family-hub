@@ -1788,6 +1788,101 @@ a {
   }
 }
 
+.spending-upload {
+  margin-bottom: 24px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.spending-upload-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.spending-upload-heading h2 {
+  margin: 3px 0 5px;
+  font-size: 20px;
+}
+
+.spending-upload-heading p,
+.spending-upload-file,
+.spending-upload-feedback {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.spending-upload-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.spending-upload-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.spending-upload-file,
+.spending-upload-feedback {
+  margin-top: 14px;
+}
+
+.spending-upload-feedback.is-error {
+  color: #b42318;
+}
+
+.spending-upload-feedback.is-success {
+  color: #1f7a4d;
+}
+
+.spending-upload-preview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.spending-upload-preview > div {
+  display: grid;
+  gap: 4px;
+}
+
+.spending-upload-preview span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.spending-upload-preview strong {
+  overflow-wrap: anywhere;
+}
+
+.spending-upload-replace {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  border-radius: 9px;
+  background: #fff1f0;
+  color: var(--text);
+  font-size: 14px;
+}
+
 .spending-header {
   display: flex;
   align-items: end;
@@ -2102,6 +2197,24 @@ a {
 }
 
 @media (max-width: 520px) {
+  .spending-upload {
+    padding: 18px 16px;
+  }
+
+  .spending-upload-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .spending-upload-preview {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .spending-upload-preview .primary-button {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
   .spending-header {
     flex-direction: column;
     margin-bottom: 22px;

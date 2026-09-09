@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ReceiptText,
   RotateCcw,
+  Upload,
   WalletCards,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +24,12 @@ import {
   type SpendingTransaction,
   type SpendingTransactionSort,
 } from "@/lib/spending-client";
+import {
+  parseSpendingUploadDocument,
+  submitSpendingUpload,
+  summarizeSpendingUpload,
+  type SpendingUploadSummary,
+} from "@/lib/spending-upload";
 
 function periodId(period: SpendingPeriod) {
   return `${period.sourceProducer}\u0000${period.sourcePeriodKey}`;
@@ -79,6 +86,14 @@ export default function SpendingPage() {
   const detailRequestId = useRef(0);
   const overviewRequestId = useRef(0);
   const historyRequestId = useRef(0);
+  const uploadRequestId = useRef(0);
+  const [uploadSummary, setUploadSummary] = useState<SpendingUploadSummary | null>(null);
+  const [uploadDocument, setUploadDocument] = useState<ReturnType<typeof parseSpendingUploadDocument> | null>(null);
+  const [uploadFileName, setUploadFileName] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [uploadMessage, setUploadMessage] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [replacementConfirmed, setReplacementConfirmed] = useState(false);
 
   async function load(selectedPeriod?: SpendingPeriod) {
     const requestId = overviewRequestId.current + 1;
@@ -124,6 +139,65 @@ export default function SpendingPage() {
       if (historyRequestId.current === requestId) setHistoryLoadFailed(true);
     } finally {
       if (historyRequestId.current === requestId) setHistoryLoading(false);
+    }
+  }
+
+  async function inspectUpload(file: File) {
+    const requestId = uploadRequestId.current + 1;
+    uploadRequestId.current = requestId;
+    setUploadFileName(file.name);
+    setUploadError("");
+    setUploadMessage("");
+    setUploadSummary(null);
+    setUploadDocument(null);
+    setReplacementConfirmed(false);
+    try {
+      const document = parseSpendingUploadDocument(await file.text());
+      if (uploadRequestId.current !== requestId) return;
+      const response = await fetch(
+        `/api/spending/imports?sourceProducer=${encodeURIComponent(document.source.producer)}`,
+      );
+      if (!response.ok) throw new Error("Unable to check existing Spending periods");
+      const { imports = [] } = await response.json() as {
+        imports?: Array<{ sourceProducer: string; sourcePeriodKey: string }>;
+      };
+      if (uploadRequestId.current !== requestId) return;
+      setUploadDocument(document);
+      setUploadSummary(summarizeSpendingUpload(document, imports));
+    } catch (error) {
+      if (uploadRequestId.current === requestId) {
+        setUploadError(error instanceof Error ? error.message : "Unable to read the Spending document");
+      }
+    }
+  }
+
+  async function importUpload() {
+    if (!uploadDocument || !uploadSummary) return;
+    if (uploadSummary.replacesExistingPeriod && !replacementConfirmed) {
+      setUploadError("Confirm the replacement before importing this existing period.");
+      return;
+    }
+    setUploading(true);
+    setUploadError("");
+    setUploadMessage("");
+    try {
+      const result = await submitSpendingUpload(fetch, uploadDocument);
+      if (!result.success) {
+        setUploadError(result.error);
+        return;
+      }
+      setUploadMessage(
+        result.status === "replaced"
+          ? "The existing Spending period was safely replaced."
+          : result.status === "duplicate"
+            ? "This Spending document was already imported; no duplicate period was created."
+            : "Spending document imported successfully.",
+      );
+      await Promise.all([load(), loadHistory(historyView)]);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Unable to import Spending document");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -179,6 +253,59 @@ export default function SpendingPage() {
 
   return (
     <div className="page spending-page">
+      <section className="spending-upload" aria-labelledby="spending-upload-heading">
+        <div className="spending-upload-heading">
+          <div>
+            <p className="section-label">Monthly import</p>
+            <h2 id="spending-upload-heading">Upload Spending document</h2>
+            <p>Upload the processed <code>spending-import/v1</code> JSON document for the completed period.</p>
+          </div>
+          <label className="secondary-button spending-upload-picker">
+            <Upload size={16} /> Choose document
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void inspectUpload(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </div>
+        {uploadFileName && <p className="spending-upload-file">Selected: {uploadFileName}</p>}
+        {uploadError && <p className="spending-upload-feedback is-error" role="alert">{uploadError}</p>}
+        {uploadMessage && <p className="spending-upload-feedback is-success" role="status">{uploadMessage}</p>}
+        {uploadSummary && (
+          <div className="spending-upload-preview">
+            <div>
+              <span>Period</span>
+              <strong>{uploadSummary.startDate} – {uploadSummary.endDate}</strong>
+            </div>
+            <div><span>Total spend</span><strong>{amount(uploadSummary.currency, uploadSummary.total)}</strong></div>
+            <div><span>Categories</span><strong>{uploadSummary.categoryCount}</strong></div>
+            <div><span>Transactions</span><strong>{uploadSummary.transactionCount}</strong></div>
+            {uploadSummary.replacesExistingPeriod && (
+              <label className="spending-upload-replace">
+                <input
+                  type="checkbox"
+                  checked={replacementConfirmed}
+                  onChange={(event) => setReplacementConfirmed(event.currentTarget.checked)}
+                />
+                <span>This will replace the existing {uploadSummary.sourcePeriodKey} snapshot. I understand.</span>
+              </label>
+            )}
+            <button
+              type="button"
+              className="primary-button"
+              disabled={uploading || (uploadSummary.replacesExistingPeriod && !replacementConfirmed)}
+              onClick={() => void importUpload()}
+            >
+              <Upload size={16} /> {uploading ? "Importing…" : uploadSummary.replacesExistingPeriod ? "Replace period" : "Import period"}
+            </button>
+          </div>
+        )}
+      </section>
       <header className="spending-header">
         <div>
           <p className="eyebrow">Household finances</p>
