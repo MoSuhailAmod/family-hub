@@ -4,6 +4,8 @@ This document captures the approved visual/interaction direction for the Spendin
 
 The generated planning mockups from the design discussion are represented here as implementation references so future tasks can work from a stable source in the repository. These are directional product designs, not pixel-perfect acceptance screenshots.
 
+**Visual reference board:** [spending-v2-reference-board.svg](spending-v2-reference-board.svg)
+
 ## 1. Data flow
 
 ```mermaid
