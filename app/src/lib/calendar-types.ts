@@ -41,6 +41,8 @@ export type CalendarOccurrence = {
 
   participants: Participant[];
 
+  reminderOffsets?: number[];
+
   occurrenceKey: string;
   occurrenceStartAt: string;
   occurrenceEndAt: string;

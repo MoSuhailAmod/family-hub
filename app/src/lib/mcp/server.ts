@@ -140,6 +140,13 @@ export function createFamilyHubMcpServer() {
         categoryId: z.string().uuid().nullable().optional(),
         recurrenceRule: z.string().nullable().optional(),
         participantIds: z.array(z.string().uuid()).optional(),
+        reminderOffsets: z.array(z.union([
+          z.literal(10),
+          z.literal(30),
+          z.literal(60),
+          z.literal(1440),
+          z.literal(10080),
+        ])).optional(),
       }),
     },
     async (input) => {
@@ -174,6 +181,13 @@ export function createFamilyHubMcpServer() {
         categoryId: z.string().uuid().nullable().optional(),
         recurrenceRule: z.string().nullable().optional(),
         participantIds: z.array(z.string().uuid()).optional(),
+        reminderOffsets: z.array(z.union([
+          z.literal(10),
+          z.literal(30),
+          z.literal(60),
+          z.literal(1440),
+          z.literal(10080),
+        ])).optional(),
       }),
     },
     async ({ id, ...input }) => {

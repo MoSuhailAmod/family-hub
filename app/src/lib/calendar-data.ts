@@ -27,6 +27,11 @@ type ParticipantRow = {
   color: string;
 };
 
+type ReminderRow = {
+  event_id: string;
+  offset_minutes: number;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;
@@ -51,6 +56,8 @@ export type CalendarEvent = {
     name: string;
     color: string;
   }[];
+
+  reminderOffsets: number[];
 };
 
 export async function listFamilyMembers() {
@@ -133,6 +140,34 @@ async function getParticipantsForEvents(ids: string[]) {
   return map;
 }
 
+async function getReminderOffsetsForEvents(ids: string[]) {
+  const map = new Map<string, number[]>();
+
+  if (ids.length === 0) {
+    return map;
+  }
+
+  const result = await pool.query<ReminderRow>(
+    `
+      SELECT
+        event_id,
+        offset_minutes
+      FROM calendar_event_reminders
+      WHERE event_id = ANY($1::uuid[])
+      ORDER BY event_id, offset_minutes
+    `,
+    [ids],
+  );
+
+  for (const row of result.rows) {
+    const existing = map.get(row.event_id) ?? [];
+    existing.push(row.offset_minutes);
+    map.set(row.event_id, existing);
+  }
+
+  return map;
+}
+
 function mapEvent(
   row: EventRow,
   participantMap: Map<
@@ -143,6 +178,7 @@ function mapEvent(
       color: string;
     }[]
   >,
+  reminderOffsetMap: Map<string, number[]>,
 ): CalendarEvent {
   return {
     id: row.id,
@@ -169,6 +205,7 @@ function mapEvent(
         : null,
 
     participants: participantMap.get(row.id) ?? [],
+    reminderOffsets: reminderOffsetMap.get(row.id) ?? [],
   };
 }
 
@@ -193,8 +230,9 @@ export async function getEventById(id: string) {
   }
 
   const participantMap = await getParticipantsForEvents([id]);
+  const reminderOffsetMap = await getReminderOffsetsForEvents([id]);
 
-  return mapEvent(result.rows[0], participantMap);
+  return mapEvent(result.rows[0], participantMap, reminderOffsetMap);
 }
 
 export async function getEventsForRange(
@@ -226,13 +264,13 @@ export async function getEventsForRange(
     [rangeStart, rangeEnd],
   );
 
-  const participantMap = await getParticipantsForEvents(
-    result.rows.map((row) => row.id),
-  );
+  const eventIds = result.rows.map((row) => row.id);
+  const participantMap = await getParticipantsForEvents(eventIds);
+  const reminderOffsetMap = await getReminderOffsetsForEvents(eventIds);
 
   return result.rows
     .flatMap((row) => {
-      const event = mapEvent(row, participantMap);
+      const event = mapEvent(row, participantMap, reminderOffsetMap);
 
       return expandEventForRange(
         event,
@@ -262,6 +300,25 @@ async function insertParticipants(
         VALUES ($1, $2)
       `,
       [eventId, familyMemberId],
+    );
+  }
+}
+
+async function insertReminders(
+  client: PoolClient,
+  eventId: string,
+  reminderOffsets: number[],
+) {
+  for (const offsetMinutes of reminderOffsets) {
+    await client.query(
+      `
+        INSERT INTO calendar_event_reminders (
+          event_id,
+          offset_minutes
+        )
+        VALUES ($1, $2)
+      `,
+      [eventId, offsetMinutes],
     );
   }
 }
@@ -308,6 +365,11 @@ export async function createEvent(input: EventInput) {
       client,
       eventId,
       input.participantIds,
+    );
+    await insertReminders(
+      client,
+      eventId,
+      input.reminderOffsets,
     );
 
     await client.query("COMMIT");
@@ -376,6 +438,27 @@ export async function updateEvent(
       client,
       id,
       input.participantIds,
+    );
+
+    await client.query(
+      `
+        DELETE FROM calendar_event_reminders
+        WHERE event_id = $1
+          AND NOT (offset_minutes = ANY($2::integer[]))
+      `,
+      [id, input.reminderOffsets],
+    );
+
+    await client.query(
+      `
+        INSERT INTO calendar_event_reminders (
+          event_id,
+          offset_minutes
+        )
+        SELECT $1, unnest($2::integer[])
+        ON CONFLICT (event_id, offset_minutes) DO NOTHING
+      `,
+      [id, input.reminderOffsets],
     );
 
     await client.query("COMMIT");
