@@ -8,5 +8,8 @@ type Context = { params: Promise<{ sourcePeriodKey: string }> };
 export async function GET(request: Request, { params }: Context) {
   const { sourcePeriodKey } = await params;
   const sourceProducer = new URL(request.url).searchParams.get("sourceProducer") ?? "";
-  return handlers.listCategories(sourceProducer, sourcePeriodKey);
+  const view = new URL(request.url).searchParams.get("view");
+  return view === "normalized"
+    ? handlers.listReportingCategories(sourceProducer, sourcePeriodKey)
+    : handlers.listCategories(sourceProducer, sourcePeriodKey);
 }

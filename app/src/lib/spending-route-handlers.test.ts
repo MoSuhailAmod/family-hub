@@ -33,6 +33,10 @@ function service(overrides: Partial<SpendingService> = {}): SpendingService {
     getLatestPeriod: async () => period,
     getPeriod: async () => period,
     listCategories: async () => [category],
+    listReportingCategories: async () => [],
+    createReportingGroup: async (name) => ({ id: "reporting-group", name }),
+    renameReportingGroup: async (id, name) => ({ id, name }),
+    setCategoryReportingGroup: async () => {},
     listTransactions: async () => [],
     listCategoryHistory: async () => [category],
     listImportMetadata: async () => [],
@@ -54,6 +58,23 @@ test("exposes spending overview and category reads through the shared service", 
   assert.deepEqual((await latest.json()).period.sourcePeriodKey, period.sourcePeriodKey);
   assert.deepEqual((await categories.json()).categories[0].sourceCategoryKey, "groceries");
   assert.deepEqual((await history.json()).categories[0].name, "Groceries");
+});
+
+test("exposes raw and normalised Spending categories separately", async () => {
+  const normalised = {
+    sourceProducer: period.sourceProducer,
+    sourcePeriodKey: period.sourcePeriodKey,
+    reportingGroupId: "shopping-group",
+    sourceCategoryKeys: ["clothing", "retail-online"],
+    name: "Shopping",
+    total: "100.00",
+  };
+  const handlers = createSpendingRouteHandlers(service({ listReportingCategories: async () => [normalised] }));
+
+  const response = await handlers.listReportingCategories(period.sourceProducer, period.sourcePeriodKey);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { categories: [normalised] });
 });
 
 test("rejects invalid category keys and distinguishes missing categories from empty drill-downs", async () => {
