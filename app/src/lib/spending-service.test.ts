@@ -50,6 +50,7 @@ const transaction: SpendingTransaction = {
   date: "2026-08-03",
   description: "Example Market",
   amount: "99.99",
+  lineType: "transaction",
 };
 const shopping: SpendingReportingCategory = {
   sourceProducer: august.sourceProducer,

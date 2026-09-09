@@ -40,9 +40,10 @@ export type SpendingTransaction = {
   sourcePeriodKey: string;
   sourceCategoryKey: string;
   sourceTransactionKey: string;
-  date: string;
+  date: string | null;
   description: string;
   amount: string;
+  lineType: "transaction" | "assumption" | "adjustment";
 };
 
 export type SpendingImportMetadata = SpendingPeriod & {

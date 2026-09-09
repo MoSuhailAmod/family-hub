@@ -37,12 +37,14 @@ export type SpendingPeriodComparison = {
 
 export type SpendingTransaction = {
   sourceTransactionKey: string;
-  date: string;
+  date: string | null;
   description: string;
   amount: string;
+  lineType?: "transaction" | "assumption" | "adjustment";
 };
 
 export type SpendingTransactionSort = "date" | "date-desc" | "amount-desc" | "amount";
+export type SpendingTransactionLineType = "all" | "transaction" | "assumption" | "adjustment";
 
 export type SpendingOverview = {
   period: SpendingPeriod | null;
@@ -55,6 +57,23 @@ export type SpendingDashboard = SpendingOverview & {
   recentTransactions: SpendingTransaction[];
   partialPeriod: SpendingPeriod | null;
 };
+
+export function previousComparablePeriod(
+  history: SpendingHistoryEntry[],
+  selected: SpendingPeriod,
+): SpendingPeriod | null {
+  if (selected.status === "partial") return null;
+  const selectedIndex = history.findIndex((entry) =>
+    entry.period.sourceProducer === selected.sourceProducer &&
+    entry.period.sourcePeriodKey === selected.sourcePeriodKey,
+  );
+  if (selectedIndex < 0) return null;
+  return history.slice(selectedIndex + 1).find((entry) =>
+    entry.period.status !== "partial" &&
+    entry.period.sourceProducer === selected.sourceProducer &&
+    entry.period.currency === selected.currency,
+  )?.period ?? null;
+}
 
 async function requestJson<T>(fetcher: typeof fetch, url: string): Promise<T> {
   const response = await fetcher(url);
@@ -140,7 +159,12 @@ export function calculatePeriodComparison(
   selectedPeriod: SpendingPeriod,
   previousPeriod: SpendingPeriod | null,
 ): SpendingPeriodComparison | null {
-  if (!previousPeriod || selectedPeriod.currency !== previousPeriod.currency) return null;
+  if (
+    !previousPeriod ||
+    selectedPeriod.status === "partial" ||
+    previousPeriod.status === "partial" ||
+    selectedPeriod.currency !== previousPeriod.currency
+  ) return null;
   const scale = Math.max(decimalParts(selectedPeriod.total).fraction.length, decimalParts(previousPeriod.total).fraction.length);
   const difference =
     decimalToScaledInteger(selectedPeriod.total, scale) - decimalToScaledInteger(previousPeriod.total, scale);
@@ -195,9 +219,22 @@ export function sortSpendingTransactions(
       return sort === "amount-desc" ? -amountDifference : amountDifference;
     }
 
-    const dateDifference = a.date.localeCompare(b.date) || a.sourceTransactionKey.localeCompare(b.sourceTransactionKey);
+    if (Boolean(a.date) !== Boolean(b.date)) return a.date ? -1 : 1;
+    const dateDifference = (a.date ?? "").localeCompare(b.date ?? "") || a.sourceTransactionKey.localeCompare(b.sourceTransactionKey);
     return sort === "date-desc" ? -dateDifference : dateDifference;
   });
+}
+
+export function filterSpendingTransactions(
+  transactions: SpendingTransaction[],
+  query: string,
+  lineType: SpendingTransactionLineType,
+): SpendingTransaction[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  return transactions.filter((transaction) =>
+    (lineType === "all" || (transaction.lineType ?? "transaction") === lineType) &&
+    (!normalizedQuery || transaction.description.toLocaleLowerCase().includes(normalizedQuery)),
+  );
 }
 
 export async function loadSpendingDashboard(

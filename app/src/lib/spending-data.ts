@@ -49,9 +49,10 @@ type TransactionRow = {
   source_period_key: string;
   source_category_key: string;
   source_transaction_key: string;
-  date: string;
+  date: string | null;
   description: string;
   amount: string;
+  line_type: "transaction" | "assumption" | "adjustment";
 };
 
 type ImportRow = PeriodRow & { source_content_sha256: string };
@@ -103,6 +104,7 @@ function mapTransaction(row: TransactionRow): SpendingTransaction {
     date: row.date,
     description: row.description,
     amount: row.amount,
+    lineType: row.line_type,
   };
 }
 
@@ -228,7 +230,7 @@ export const spendingRepository: SpendingRepository = {
   async listTransactions(sourceProducer, sourcePeriodKey, sourceCategoryKey) {
     const result = await pool.query<TransactionRow>(
       `SELECT p.source_producer, p.source_period_key, c.source_category_key,
-              t.source_transaction_key, t.source_transaction_date AS date, t.description, t.amount
+              t.source_transaction_key, t.source_transaction_date AS date, t.description, t.amount, t.line_type
        FROM spending_transactions t
        INNER JOIN spending_periods p ON p.id = t.period_id
        INNER JOIN spending_period_categories pc ON pc.id = t.period_category_id
@@ -251,7 +253,7 @@ export const spendingRepository: SpendingRepository = {
       ),
       pool.query<TransactionRow>(
         `SELECT p.source_producer, p.source_period_key, c.source_category_key,
-                t.source_transaction_key, t.source_transaction_date AS date, t.description, t.amount
+                t.source_transaction_key, t.source_transaction_date AS date, t.description, t.amount, t.line_type
          FROM spending_transactions t
          INNER JOIN spending_periods p ON p.id = t.period_id
          INNER JOIN spending_period_categories pc ON pc.id = t.period_category_id

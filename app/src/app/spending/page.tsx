@@ -12,15 +12,18 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   calculatePeriodComparison,
+  filterSpendingTransactions,
   loadSpendingCategoryTransactions,
   loadSpendingDashboard,
   loadSpendingHistory,
+  previousComparablePeriod,
   sortSpendingTransactions,
   type SpendingCategory,
   type SpendingHistoryEntry,
   type SpendingHistoryView,
   type SpendingPeriod,
   type SpendingTransaction,
+  type SpendingTransactionLineType,
   type SpendingTransactionSort,
 } from "@/lib/spending-client";
 
@@ -48,14 +51,6 @@ function categoryId(
   return `${sourceProducer}\u0000${categoryKey}`;
 }
 
-function previousComparablePeriod(history: SpendingHistoryEntry[], selected: SpendingPeriod) {
-  const selectedIndex = history.findIndex((entry) => periodId(entry.period) === periodId(selected));
-  if (selectedIndex < 0) return null;
-  return history.slice(selectedIndex + 1).find((entry) =>
-    entry.period.sourceProducer === selected.sourceProducer && entry.period.currency === selected.currency,
-  )?.period ?? null;
-}
-
 function signedAmount(currency: string, value: string) {
   return `${value.startsWith("-") ? "−" : "+"}${amount(currency, value.replace(/^-/, ""))}`;
 }
@@ -75,6 +70,8 @@ export default function SpendingPage() {
   const [selectedCategory, setSelectedCategory] = useState<SpendingCategory | null>(null);
   const [transactions, setTransactions] = useState<SpendingTransaction[]>([]);
   const [transactionSort, setTransactionSort] = useState<SpendingTransactionSort>("date");
+  const [transactionQuery, setTransactionQuery] = useState("");
+  const [transactionLineType, setTransactionLineType] = useState<SpendingTransactionLineType>("all");
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -142,6 +139,8 @@ export default function SpendingPage() {
     setSelectedCategory(category);
     setTransactions([]);
     setTransactionSort("date");
+    setTransactionQuery("");
+    setTransactionLineType("all");
     setDetailLoading(true);
     setDetailLoadFailed(false);
     try {
@@ -280,33 +279,46 @@ export default function SpendingPage() {
             <div className="spending-detail-state">No imported transactions were provided for this category.</div>
           ) : (
             <>
-              <label className="spending-transaction-sort">
-                <span>Sort by</span>
-                <select
-                  aria-label="Sort category transactions"
-                  value={transactionSort}
-                  onChange={(event) => setTransactionSort(event.target.value as SpendingTransactionSort)}
-                >
-                  <option value="date">Transaction date (oldest first)</option>
-                  <option value="date-desc">Transaction date (newest first)</option>
-                  <option value="amount-desc">Amount (highest first)</option>
-                  <option value="amount">Amount (lowest first)</option>
-                </select>
-              </label>
+              <div className="spending-transaction-controls">
+                <label>
+                  <span>Search description</span>
+                  <input type="search" value={transactionQuery} onChange={(event) => setTransactionQuery(event.target.value)} placeholder="Search imported lines" />
+                </label>
+                <label>
+                  <span>Line type</span>
+                  <select aria-label="Filter category source lines by type" value={transactionLineType} onChange={(event) => setTransactionLineType(event.target.value as SpendingTransactionLineType)}>
+                    <option value="all">All source lines</option>
+                    <option value="transaction">Transactions</option>
+                    <option value="assumption">Assumptions</option>
+                    <option value="adjustment">Adjustments</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Sort by</span>
+                  <select aria-label="Sort category transactions" value={transactionSort} onChange={(event) => setTransactionSort(event.target.value as SpendingTransactionSort)}>
+                    <option value="date">Transaction date (oldest first)</option>
+                    <option value="date-desc">Transaction date (newest first)</option>
+                    <option value="amount-desc">Amount (highest first)</option>
+                    <option value="amount">Amount (lowest first)</option>
+                  </select>
+                </label>
+              </div>
               <div className="spending-transactions-table-wrap">
                 <table className="spending-transactions-table">
                   <thead>
                     <tr>
                       <th scope="col">Date</th>
                       <th scope="col">Description</th>
+                      <th scope="col">Source line type</th>
                       <th scope="col">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortSpendingTransactions(transactions, transactionSort).map((transaction) => (
+                    {sortSpendingTransactions(filterSpendingTransactions(transactions, transactionQuery, transactionLineType), transactionSort).map((transaction) => (
                       <tr key={transaction.sourceTransactionKey}>
-                        <td>{transaction.date}</td>
+                        <td>{transaction.date ?? "—"}</td>
                         <td>{transaction.description}</td>
+                        <td>{transaction.lineType ?? "transaction"}</td>
                         <td>{amount(period.currency, transaction.amount)}</td>
                       </tr>
                     ))}
