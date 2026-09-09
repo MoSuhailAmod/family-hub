@@ -119,12 +119,10 @@ export function createSpendingService(repository: SpendingRepository) {
     },
 
     async listCategoryHistory(sourceProducer: string, sourceCategoryKey: string) {
-      return (
-        await repository.listCategoryHistory(
-          requiredKey(sourceProducer, "sourceProducer"),
-          requiredKey(sourceCategoryKey, "sourceCategoryKey"),
-        )
-      ).sort((a, b) => b.sourcePeriodKey.localeCompare(a.sourcePeriodKey));
+      return repository.listCategoryHistory(
+        requiredKey(sourceProducer, "sourceProducer"),
+        requiredKey(sourceCategoryKey, "sourceCategoryKey"),
+      );
     },
 
     async listImportMetadata(sourceProducer?: string) {

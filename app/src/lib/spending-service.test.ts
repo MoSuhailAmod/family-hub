@@ -109,6 +109,21 @@ test("returns dynamic category totals and selected category transactions without
   );
 });
 
+test("preserves repository category-history chronology when source period keys are not sortable dates", async () => {
+  const newest = { ...groceries, sourcePeriodKey: "archived-export" };
+  const oldest = { ...groceries, sourcePeriodKey: "zulu-ledger" };
+  const baseRepository = repository();
+  const service = createSpendingService({
+    ...baseRepository,
+    listCategoryHistory: async () => [newest, oldest],
+  });
+
+  assert.deepEqual(
+    await service.listCategoryHistory(august.sourceProducer, groceries.sourceCategoryKey),
+    [newest, oldest],
+  );
+});
+
 test("returns category history and import metadata while validating lookup keys", async () => {
   const service = createSpendingService(repository());
 
