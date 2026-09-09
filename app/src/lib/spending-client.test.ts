@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadSpendingOverview } from "./spending-client";
+import {
+  calculatePeriodComparison,
+  loadSpendingHistory,
+  loadSpendingOverview,
+} from "./spending-client";
 
 const latestPeriod = {
   sourceProducer: "bank-import",
@@ -86,6 +90,67 @@ test("returns an empty overview when no imported spending periods exist", async 
     periods: [],
     categories: [],
   });
+});
+
+test("loads dynamically returned raw or normalized categories for every historical period", async () => {
+  const historicalPeriod = {
+    ...latestPeriod,
+    sourcePeriodKey: "2026/02",
+    startDate: "2026-02-01",
+    endDate: "2026-02-28",
+    total: "900.00",
+  };
+  const requestedUrls: string[] = [];
+  const fetcher: typeof fetch = async (url) => {
+    const value = String(url);
+    requestedUrls.push(value);
+    if (value === "/api/spending/periods") return Response.json({ periods: [historicalPeriod, latestPeriod] });
+    if (value === "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import") {
+      return Response.json({ categories: [{ ...categories[0], sourceCategoryKeys: ["groceries"] }] });
+    }
+    if (value === "/api/spending/periods/2026%2F02/categories?sourceProducer=bank-import") {
+      return Response.json({ categories: [{ sourceCategoryKey: "clothing", name: "Clothing", total: "200.00" }] });
+    }
+    if (value === "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import&view=normalized") {
+      return Response.json({ categories: [{ reportingGroupId: "shopping", sourceCategoryKeys: ["groceries"], name: "Shopping", total: "500.00" }] });
+    }
+    if (value === "/api/spending/periods/2026%2F02/categories?sourceProducer=bank-import&view=normalized") {
+      return Response.json({ categories: [{ reportingGroupId: "shopping", sourceCategoryKeys: ["clothing"], name: "Shopping", total: "200.00" }] });
+    }
+    return new Response(null, { status: 404 });
+  };
+
+  const rawHistory = await loadSpendingHistory(fetcher, "raw");
+  const normalizedHistory = await loadSpendingHistory(fetcher, "normalized");
+
+  assert.deepEqual(rawHistory.map((entry) => entry.categories.map((category) => category.name)), [
+    ["Groceries"],
+    ["Clothing"],
+  ]);
+  assert.deepEqual(normalizedHistory.map((entry) => entry.categories.map((category) => category.name)), [
+    ["Shopping"],
+    ["Shopping"],
+  ]);
+  assert.deepEqual(requestedUrls, [
+    "/api/spending/periods",
+    "/api/spending/periods/2026%2F02/categories?sourceProducer=bank-import",
+    "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import",
+    "/api/spending/periods",
+    "/api/spending/periods/2026%2F02/categories?sourceProducer=bank-import&view=normalized",
+    "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import&view=normalized",
+  ]);
+});
+
+test("compares a selected complete period only with its preceding same-currency source period", () => {
+  const previous = { ...latestPeriod, sourcePeriodKey: "2026/02", total: "900.00" };
+  const current = { ...latestPeriod, total: "1234.56" };
+
+  assert.deepEqual(calculatePeriodComparison(current, previous), {
+    absoluteChange: "334.56",
+    percentageChange: "37.2",
+  });
+  assert.equal(calculatePeriodComparison(current, { ...previous, currency: "USD" }), null);
+  assert.equal(calculatePeriodComparison(current, null), null);
 });
 
 test("loads every source transaction for a selected category without changing imported values", async () => {

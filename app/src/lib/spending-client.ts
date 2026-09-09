@@ -14,6 +14,25 @@ export type SpendingCategory = {
   transactionsProvided?: boolean;
 };
 
+export type SpendingReportingCategory = {
+  reportingGroupId: string | null;
+  sourceCategoryKeys: string[];
+  name: string;
+  total: string;
+};
+
+export type SpendingHistoryView = "raw" | "normalized";
+
+export type SpendingHistoryEntry = {
+  period: SpendingPeriod;
+  categories: (SpendingCategory | SpendingReportingCategory)[];
+};
+
+export type SpendingPeriodComparison = {
+  absoluteChange: string;
+  percentageChange: string | null;
+};
+
 export type SpendingTransaction = {
   sourceTransactionKey: string;
   date: string;
@@ -40,8 +59,9 @@ function periodUrl(period: SpendingPeriod) {
   return `/api/spending/periods/${encodeURIComponent(period.sourcePeriodKey)}?${params}`;
 }
 
-function categoriesUrl(period: SpendingPeriod) {
+function categoriesUrl(period: SpendingPeriod, view: SpendingHistoryView = "raw") {
   const params = new URLSearchParams({ sourceProducer: period.sourceProducer });
+  if (view === "normalized") params.set("view", "normalized");
   return `/api/spending/periods/${encodeURIComponent(period.sourcePeriodKey)}/categories?${params}`;
 }
 
@@ -58,6 +78,79 @@ export async function loadSpendingCategoryTransactions(
   return (
     await requestJson<{ transactions?: SpendingTransaction[] }>(fetcher, transactionsUrl(period, category))
   ).transactions ?? [];
+}
+
+export async function loadSpendingHistory(
+  fetcher: typeof fetch,
+  view: SpendingHistoryView,
+): Promise<SpendingHistoryEntry[]> {
+  const { periods = [] } = await requestJson<{ periods?: SpendingPeriod[] }>(
+    fetcher,
+    "/api/spending/periods",
+  );
+  const entries = await Promise.all(
+    periods.map(async (period) => ({
+      period,
+      categories: (
+        await requestJson<{ categories?: (SpendingCategory | SpendingReportingCategory)[] }>(
+          fetcher,
+          categoriesUrl(period, view),
+        )
+      ).categories ?? [],
+    })),
+  );
+  return entries.sort((a, b) =>
+    b.period.endDate.localeCompare(a.period.endDate) ||
+    b.period.startDate.localeCompare(a.period.startDate) ||
+    a.period.sourceProducer.localeCompare(b.period.sourceProducer) ||
+    a.period.sourcePeriodKey.localeCompare(b.period.sourcePeriodKey),
+  );
+}
+
+function decimalParts(value: string) {
+  const negative = value.startsWith("-");
+  const [integer = "0", fraction = ""] = value.replace(/^[+-]/, "").split(".");
+  return { negative, integer: integer.replace(/^0+(?=\d)/, ""), fraction };
+}
+
+function decimalToScaledInteger(value: string, scale: number) {
+  const { negative, integer, fraction } = decimalParts(value);
+  const digits = `${integer}${fraction.padEnd(scale, "0")}`.replace(/^0+(?=\d)/, "") || "0";
+  const result = BigInt(digits);
+  return negative ? -result : result;
+}
+
+function scaledIntegerToDecimal(value: bigint, scale: number) {
+  const negative = value < BigInt(0);
+  const digits = (negative ? -value : value).toString().padStart(scale + 1, "0");
+  const integer = scale === 0 ? digits : digits.slice(0, -scale);
+  const fraction = scale === 0 ? "" : digits.slice(-scale).replace(/0+$/, "");
+  return `${negative ? "-" : ""}${integer}${fraction ? `.${fraction}` : ""}`;
+}
+
+export function calculatePeriodComparison(
+  selectedPeriod: SpendingPeriod,
+  previousPeriod: SpendingPeriod | null,
+): SpendingPeriodComparison | null {
+  if (!previousPeriod || selectedPeriod.currency !== previousPeriod.currency) return null;
+  const scale = Math.max(decimalParts(selectedPeriod.total).fraction.length, decimalParts(previousPeriod.total).fraction.length);
+  const difference =
+    decimalToScaledInteger(selectedPeriod.total, scale) - decimalToScaledInteger(previousPeriod.total, scale);
+  const previousTotal = decimalToScaledInteger(previousPeriod.total, scale);
+  const percentageScale = 1;
+  const percentageNumerator = difference * BigInt(100 * 10 ** percentageScale);
+  const absolutePrevious = previousTotal < BigInt(0) ? -previousTotal : previousTotal;
+  const roundedPercentage = absolutePrevious === BigInt(0)
+    ? null
+    : (percentageNumerator < BigInt(0) ? -BigInt(1) : BigInt(1)) *
+      ((percentageNumerator < BigInt(0) ? -percentageNumerator : percentageNumerator) + absolutePrevious / BigInt(2)) /
+      absolutePrevious;
+  return {
+    absoluteChange: scaledIntegerToDecimal(difference, scale),
+    percentageChange: roundedPercentage === null
+      ? null
+      : scaledIntegerToDecimal(roundedPercentage, percentageScale),
+  };
 }
 
 function compareDecimalStrings(a: string, b: string) {
