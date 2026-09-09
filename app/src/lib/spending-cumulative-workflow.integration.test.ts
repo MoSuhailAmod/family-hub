@@ -67,8 +67,15 @@ async function reconcile(snapshot: SpendingReconciliationPayload) {
 
 test("finalizes a cutoff-dated Markdown partial under its stable reporting-period key", async () => {
   const sourceMarkdown = await readFile(join(fixtureDirectory, "partial-cutoff-source.md"), "utf8");
+  assert.match(sourceMarkdown, /28 Jul 2026 - 27 Aug 2026/);
   assert.match(sourceMarkdown, /28 Aug 2026 - 3 Sep 2026 \(partial period\)/);
-  assert.match(sourceMarkdown, /Reporting period: 28 Aug 2026 - 27 Sep 2026/);
+  assert.match(sourceMarkdown, /### Groceries/);
+  assert.match(sourceMarkdown, /- 01 Sep 2026 — Example Market — R 720\.00/);
+  assert.match(sourceMarkdown, /\*\*Groceries total: R 720\.00\*\*/);
+  assert.match(sourceMarkdown, /- Opening provision — R 80\.00/);
+  assert.match(sourceMarkdown, /\*\*Period total to date: R 800\.00\*\*/);
+  assert.match(sourceMarkdown, /## Excluded from spending totals/);
+  assert.doesNotMatch(sourceMarkdown, /Reporting period:/);
 
   const partial = await fixture("partial-cutoff.json");
   const completed = await fixture("partial-finalized.json");

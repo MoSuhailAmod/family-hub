@@ -4,36 +4,38 @@ Sanitized representative cumulative source fixture. It deliberately mirrors the 
 
 ## 28 Jul 2026 - 27 Aug 2026
 
-| Category | Total |
-| --- | ---: |
-| Groceries | R 1,100.00 |
-| Utilities | R 450.00 |
-| **Period total** | **R 1,550.00** |
-
 ### Groceries
 
-| Date | Description | Amount |
-| --- | --- | ---: |
-| 04 Aug 2026 | Example Market | R 1,100.00 |
+- 04 Aug 2026 — Example Market — R 1,100.00
+
+**Groceries total: R 1,100.00**
+
+### Utilities
+
+- Electricity and water — R 450.00
+
+**Utilities total: R 450.00**
+
+**Period total: R 1,550.00**
 
 ## 28 Aug 2026 - 3 Sep 2026 (partial period)
 
-Reporting period: 28 Aug 2026 - 27 Sep 2026
-
-| Category | Total |
-| --- | ---: |
-| Groceries | R 720.00 |
-| Home maintenance | R 80.00 |
-| **Period total to date** | **R 800.00** |
-
 ### Groceries
 
-| Date | Description | Amount |
-| --- | --- | ---: |
-| 01 Sep 2026 | Example Market | R 720.00 |
+- 01 Sep 2026 — Example Market — R 720.00
+
+**Groceries total: R 720.00**
 
 ### Home maintenance
 
-- Opening provision: R 80.00
+- Opening provision — R 80.00
 
-> The heading's end date is the report cutoff/as-of date, not the logical reporting-period end. ChatGPT constructs the structured snapshot using the stated reporting period.
+**Home maintenance total: R 80.00**
+
+**Period total to date: R 800.00**
+
+## Excluded from spending totals
+
+- Transfer to savings account — excluded; this is not a household spending transaction.
+
+> The partial heading's end date is the report cutoff/as-of date. The preceding completed 28th-to-27th heading establishes the cadence ChatGPT uses to construct the partial snapshot's logical period identity; it is not source metadata.
