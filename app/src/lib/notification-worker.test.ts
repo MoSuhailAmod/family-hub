@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createNotificationWorker } from "./notification-worker";
-import { remindersDueQuery } from "./notification-worker-data";
+import { isCurrentSchedule, remindersDueQuery } from "./notification-worker-data";
 
 const now = new Date("2026-09-08T08:00:00.000Z");
 const reminder = {
@@ -157,4 +157,24 @@ test("uses the destination revalidated atomically at claim time", async () => {
 
   assert.equal((await worker.run(now)).delivered, 1);
   assert.deepEqual(sent, ["current_target"]);
+});
+
+test("rejects an intent when the authoritative schedule changes before its claim", () => {
+  const intent = {
+    reminderId: "reminder-1",
+    occurrenceKey: "event-1:2026-09-08T08:10:00.000Z",
+    scheduledFor: new Date("2026-09-08T08:00:00.000Z"),
+  };
+  const current = {
+    eventId: "event-1",
+    allDay: false,
+    startAt: new Date("2026-09-08T08:30:00.000Z"),
+    endAt: new Date("2026-09-08T09:20:00.000Z"),
+    recurrenceRule: "FREQ=DAILY",
+    offsetMinutes: 10,
+  };
+
+  assert.equal(isCurrentSchedule(intent, current), false);
+  assert.equal(isCurrentSchedule(intent, { ...current, startAt: new Date("2026-09-08T08:10:00.000Z"), offsetMinutes: 30 }), false);
+  assert.equal(isCurrentSchedule(intent, { ...current, startAt: new Date("2026-09-08T08:10:00.000Z") }), true);
 });
