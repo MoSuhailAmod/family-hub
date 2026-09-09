@@ -20,6 +20,18 @@ const isoDateString = z.string().refine(
   "Must be a valid ISO date/time",
 );
 
+export const approvedReminderOffsets = [10, 30, 60, 1440, 10080] as const;
+
+const reminderOffsetSchema = z.union(
+  approvedReminderOffsets.map((offset) => z.literal(offset)) as [
+    z.ZodLiteral<10>,
+    z.ZodLiteral<30>,
+    z.ZodLiteral<60>,
+    z.ZodLiteral<1440>,
+    z.ZodLiteral<10080>,
+  ],
+);
+
 const baseEventSchema = z.object({
   title: z.string().trim().min(1).max(200),
 
@@ -38,11 +50,21 @@ const baseEventSchema = z.object({
   recurrenceRule: nullableText(1000),
 
   participantIds: z.array(uuid).optional().default([]),
+
+  reminderOffsets: z.array(reminderOffsetSchema).optional().default([]),
 });
 
 export const eventInputSchema = baseEventSchema.superRefine((data, ctx) => {
   const start = new Date(data.startAt);
   const end = new Date(data.endAt);
+
+  if (new Set(data.reminderOffsets).size !== data.reminderOffsets.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reminderOffsets"],
+      message: "Reminder offsets must not contain duplicates",
+    });
+  }
 
   if (end <= start) {
     ctx.addIssue({
@@ -102,6 +124,7 @@ export function parseEventInput(input: unknown) {
     data: {
       ...parsed.data,
       participantIds: [...new Set(parsed.data.participantIds)],
+      reminderOffsets: [...parsed.data.reminderOffsets].sort((a, b) => a - b),
       recurrenceRule: parsed.data.recurrenceRule
         ? parsed.data.recurrenceRule.replace(/^RRULE:/i, "")
         : null,
