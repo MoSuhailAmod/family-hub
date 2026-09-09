@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "spending-reconciliation/v1",
+  "source": {
+    "producer": "sanitized-chatgpt-household-spending-cutoff-fixture",
+    "documentId": "sanitized-household-spending-budget",
+    "revision": "completed-at-2026-09-27",
+    "issuedAt": "2026-09-27T18:00:00Z",
+    "importedBy": "chatgpt",
+    "contentSha256": "d1a3df4605b17fc359498c9a087d73e12742d988f62adb03589c49c9d7525d3c"
+  },
+  "periods": [
+    {
+      "sourcePeriodKey": "2026-08-28-to-2026-09-27",
+      "startDate": "2026-08-28",
+      "endDate": "2026-09-27",
+      "currency": "ZAR",
+      "total": "1250.00",
+      "status": "completed",
+      "categories": [
+        {
+          "sourceCategoryKey": "groceries",
+          "name": "Groceries",
+          "total": "990.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "2026-09-01-example-market",
+              "lineType": "transaction",
+              "date": "2026-09-01",
+              "description": "Example Market",
+              "amount": "720.00"
+            },
+            {
+              "sourceTransactionKey": "2026-09-18-example-market",
+              "lineType": "transaction",
+              "date": "2026-09-18",
+              "description": "Example Market",
+              "amount": "270.00"
+            }
+          ]
+        },
+        {
+          "sourceCategoryKey": "home-maintenance",
+          "name": "Home maintenance",
+          "total": "260.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "opening-maintenance-provision",
+              "lineType": "assumption",
+              "description": "Sanitized opening maintenance provision (corrected wording)",
+              "amount": "80.00"
+            },
+            {
+              "sourceTransactionKey": "2026-09-maintenance-adjustment",
+              "lineType": "adjustment",
+              "description": "Sanitized completed-period adjustment",
+              "amount": "180.00"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

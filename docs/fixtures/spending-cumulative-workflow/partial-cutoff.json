@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "spending-reconciliation/v1",
+  "source": {
+    "producer": "sanitized-chatgpt-household-spending-cutoff-fixture",
+    "documentId": "sanitized-household-spending-budget",
+    "revision": "partial-at-2026-09-03",
+    "issuedAt": "2026-09-03T18:00:00Z",
+    "importedBy": "chatgpt",
+    "contentSha256": "15fa0f8e2e5fcdf712faf309b52f4bd6df5d27173be447df9d5038f6578b0d46"
+  },
+  "periods": [
+    {
+      "sourcePeriodKey": "2026-08-28-to-2026-09-27",
+      "startDate": "2026-08-28",
+      "endDate": "2026-09-27",
+      "currency": "ZAR",
+      "total": "800.00",
+      "status": "partial",
+      "categories": [
+        {
+          "sourceCategoryKey": "groceries",
+          "name": "Groceries",
+          "total": "720.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "2026-09-01-example-market",
+              "lineType": "transaction",
+              "date": "2026-09-01",
+              "description": "Example Market",
+              "amount": "720.00"
+            }
+          ]
+        },
+        {
+          "sourceCategoryKey": "home-maintenance",
+          "name": "Home maintenance",
+          "total": "80.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "opening-maintenance-provision",
+              "lineType": "assumption",
+              "description": "Sanitized opening maintenance provision",
+              "amount": "80.00"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

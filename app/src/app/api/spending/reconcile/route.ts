@@ -1,8 +1,7 @@
-import { createSpendingReconciliationRouteHandlers } from "@/lib/spending-reconciliation-route-handlers";
+import { createSpendingReconciliationRouteHandlers, type SpendingReconciliationService } from "@/lib/spending-reconciliation-route-handlers";
 import { spendingReconciliationService } from "@/lib/spending";
 
 const MAX_SPENDING_RECONCILIATION_BYTES = 5 * 1024 * 1024;
-const handlers = createSpendingReconciliationRouteHandlers(spendingReconciliationService);
 
 function payloadTooLarge() {
   return Response.json({
@@ -49,9 +48,15 @@ async function parsePayload(request: Request): Promise<unknown | Response> {
   }
 }
 
-export async function POST(request: Request) {
-  const payload = await parsePayload(request);
-  if (payload instanceof Response) return payload;
+export function createSpendingReconciliationHttpHandler(service: SpendingReconciliationService) {
+  const handlers = createSpendingReconciliationRouteHandlers(service);
 
-  return handlers.reconcileSnapshot(payload);
+  return async function post(request: Request) {
+    const payload = await parsePayload(request);
+    if (payload instanceof Response) return payload;
+
+    return handlers.reconcileSnapshot(payload);
+  };
 }
+
+export const POST = createSpendingReconciliationHttpHandler(spendingReconciliationService);
