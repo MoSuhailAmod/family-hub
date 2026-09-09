@@ -2237,3 +2237,27 @@ a {
   .spending-comparison-card, .spending-history-categories, .spending-category-trend, .spending-trend-table-wrap { padding: 18px 16px; }
   .spending-history-note, .spending-history-state { padding-right: 16px; padding-left: 16px; }
 }
+
+.spending-freshness { margin: 8px 0 0; color: var(--text-muted); font-size: 13px; }
+.spending-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 20px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--border); box-shadow: var(--shadow-sm); }
+.spending-metrics > div { display: grid; gap: 6px; padding: 18px 22px; background: var(--surface); }
+.spending-metrics span { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.spending-metrics strong { font-size: 20px; overflow-wrap: anywhere; }
+.spending-partial-banner { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 20px; padding: 17px 22px; border: 1px solid var(--accent); border-radius: var(--radius-md); background: var(--accent-soft); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.spending-partial-banner > span:first-child { display: grid; gap: 4px; }
+.spending-partial-banner small { color: var(--text-muted); }
+.spending-partial-banner > span:last-child { color: var(--accent); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.spending-recent { margin-top: 20px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.spending-recent ul { margin: 0; padding: 0 22px; list-style: none; }
+.spending-recent li { display: flex; justify-content: space-between; gap: 18px; padding: 14px 0; border-top: 1px solid var(--border); }
+.spending-recent li > span { display: grid; gap: 3px; min-width: 0; }
+.spending-recent li span strong { overflow-wrap: anywhere; }
+.spending-recent li small { color: var(--text-muted); font-size: 12px; }
+.spending-recent li > strong { white-space: nowrap; }
+.spending-category-chart { display: grid; gap: 12px; margin: 0; padding: 20px 22px; list-style: none; }
+.spending-category-chart li { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(80px, 2fr) auto; align-items: center; gap: 12px; font-size: 14px; }
+.spending-category-chart li > span { overflow-wrap: anywhere; color: var(--text-muted); }
+.spending-category-chart li > div { height: 8px; overflow: hidden; border-radius: 999px; background: var(--surface-soft); }
+.spending-category-chart i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.spending-category-chart strong { white-space: nowrap; }
+@media (max-width: 620px) { .spending-metrics { grid-template-columns: 1fr; } .spending-metrics > div { padding: 16px; } .spending-partial-banner { align-items: start; flex-direction: column; gap: 10px; padding: 16px; } .spending-recent ul { padding: 0 16px; } .spending-category-chart { padding: 18px 16px; } }

@@ -23,6 +23,7 @@ const august: SpendingPeriod = {
   sourceRevision: "1",
   sourceIssuedAt: new Date("2026-09-01T07:30:00.000Z"),
   importedAt: new Date("2026-09-01T08:00:00.000Z"),
+  status: "completed",
 };
 const september: SpendingPeriod = {
   ...august,
@@ -97,6 +98,7 @@ function repository(): SpendingRepository {
       sourceCategoryKey === groceries.sourceCategoryKey
         ? [transaction]
         : [],
+    listRecentTransactions: async () => ({ transactionCount: 1, transactions: [transaction] }),
     listCategoryHistory: async (sourceProducer, sourceCategoryKey) =>
       sourceProducer === august.sourceProducer && sourceCategoryKey === groceries.sourceCategoryKey
         ? [groceries]

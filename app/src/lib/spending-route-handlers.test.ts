@@ -17,6 +17,7 @@ const period = {
   sourceRevision: "1",
   sourceIssuedAt: new Date("2026-09-01T07:30:00.000Z"),
   importedAt: new Date("2026-09-01T08:00:00.000Z"),
+  status: "completed" as const,
 };
 const category = {
   sourceProducer: period.sourceProducer,
@@ -38,6 +39,7 @@ function service(overrides: Partial<SpendingService> = {}): SpendingService {
     renameReportingGroup: async (id, name) => ({ id, name }),
     setCategoryReportingGroup: async () => {},
     listTransactions: async () => [],
+    listRecentTransactions: async () => ({ transactionCount: 0, transactions: [] }),
     listCategoryHistory: async () => [category],
     listImportMetadata: async () => [],
     ...overrides,

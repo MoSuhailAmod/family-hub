@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   calculatePeriodComparison,
+  loadSpendingDashboard,
   loadSpendingHistory,
   loadSpendingOverview,
 } from "./spending-client";
@@ -44,6 +45,56 @@ test("loads the latest spending period and every category returned by the API", 
     "/api/spending/periods",
     "/api/spending/periods/latest",
     "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import",
+  ]);
+});
+
+test("loads a completed dashboard period, partial-period prompt, and recent transaction preview from stored API data", async () => {
+  const completedPeriod = { ...latestPeriod, status: "completed", importedAt: "2026-04-01T08:00:00.000Z" };
+  const partialPeriod = {
+    ...latestPeriod,
+    sourcePeriodKey: "2026/04",
+    startDate: "2026-04-01",
+    endDate: "2026-04-30",
+    total: "800.00",
+    status: "partial",
+    importedAt: "2026-04-15T08:00:00.000Z",
+  };
+  const recentTransactions = [{
+    sourceTransactionKey: "recent-1",
+    date: "2026-03-30",
+    description: "Example Market",
+    amount: "-99.99",
+  }];
+  const requestedUrls: string[] = [];
+  const fetcher: typeof fetch = async (url) => {
+    const value = String(url);
+    requestedUrls.push(value);
+    if (value === "/api/spending/periods") return Response.json({ periods: [partialPeriod, completedPeriod] });
+    if (value === "/api/spending/periods/latest") return Response.json({ period: completedPeriod });
+    if (value === "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import") {
+      return Response.json({ categories });
+    }
+    if (value === "/api/spending/periods/2026%2F03/transactions?sourceProducer=bank-import") {
+      return Response.json({ transactionCount: 7, transactions: recentTransactions });
+    }
+    return new Response(null, { status: 404 });
+  };
+
+  const dashboard = await loadSpendingDashboard(fetcher);
+
+  assert.deepEqual(dashboard, {
+    period: completedPeriod,
+    periods: [partialPeriod, completedPeriod],
+    categories,
+    transactionCount: 7,
+    recentTransactions,
+    partialPeriod,
+  });
+  assert.deepEqual(requestedUrls, [
+    "/api/spending/periods",
+    "/api/spending/periods/latest",
+    "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import",
+    "/api/spending/periods/2026%2F03/transactions?sourceProducer=bank-import",
   ]);
 });
 

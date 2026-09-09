@@ -29,6 +29,10 @@ export type SpendingService = {
     sourcePeriodKey: string,
     sourceCategoryKey: string,
   ) => Promise<SpendingTransaction[]>;
+  listRecentTransactions: (
+    sourceProducer: string,
+    sourcePeriodKey: string,
+  ) => Promise<{ transactionCount: number; transactions: SpendingTransaction[] }>;
   listCategoryHistory: (
     sourceProducer: string,
     sourceCategoryKey: string,
@@ -168,6 +172,18 @@ export function createSpendingRouteHandlers(service: SpendingService) {
         return Response.json({
           transactions: await service.listTransactions(producer, periodKey, categoryKey),
         });
+      } catch (error) {
+        return errorResponse(error, "load");
+      }
+    },
+
+    async listRecentTransactions(sourceProducer: string, sourcePeriodKey: string) {
+      try {
+        const producer = requiredKey(sourceProducer, "sourceProducer");
+        const periodKey = requiredKey(sourcePeriodKey, "sourcePeriodKey");
+        const period = await service.getPeriod(producer, periodKey);
+        if (!period) return periodNotFound();
+        return Response.json(await service.listRecentTransactions(producer, periodKey));
       } catch (error) {
         return errorResponse(error, "load");
       }

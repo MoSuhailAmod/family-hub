@@ -14,6 +14,7 @@ const period = {
   sourceRevision: "1",
   sourceIssuedAt: new Date("2026-09-01T07:30:00.000Z"),
   importedAt: new Date("2026-09-01T08:00:00.000Z"),
+  status: "completed" as const,
 };
 
 test("registers Spending MCP reconciliation and review tools over shared services", async () => {
