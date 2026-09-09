@@ -25,9 +25,10 @@ import {
   type SpendingTransactionSort,
 } from "@/lib/spending-client";
 import {
-  parseSpendingUploadDocument,
+  parseSpendingUploadContent,
   submitSpendingUpload,
   summarizeSpendingUpload,
+  type SpendingUploadDocument,
   type SpendingUploadSummary,
 } from "@/lib/spending-upload";
 
@@ -88,7 +89,7 @@ export default function SpendingPage() {
   const historyRequestId = useRef(0);
   const uploadRequestId = useRef(0);
   const [uploadSummary, setUploadSummary] = useState<SpendingUploadSummary | null>(null);
-  const [uploadDocument, setUploadDocument] = useState<ReturnType<typeof parseSpendingUploadDocument> | null>(null);
+  const [uploadDocument, setUploadDocument] = useState<SpendingUploadDocument | null>(null);
   const [uploadFileName, setUploadFileName] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [uploadMessage, setUploadMessage] = useState("");
@@ -152,7 +153,7 @@ export default function SpendingPage() {
     setUploadDocument(null);
     setReplacementConfirmed(false);
     try {
-      const document = parseSpendingUploadDocument(await file.text());
+      const document = await parseSpendingUploadContent(await file.text(), file.name);
       if (uploadRequestId.current !== requestId) return;
       const response = await fetch(
         `/api/spending/imports?sourceProducer=${encodeURIComponent(document.source.producer)}`,
@@ -258,13 +259,13 @@ export default function SpendingPage() {
           <div>
             <p className="section-label">Monthly import</p>
             <h2 id="spending-upload-heading">Upload Spending document</h2>
-            <p>Upload the processed <code>spending-import/v1</code> JSON document for the completed period.</p>
+            <p>Upload your completed monthly Spending document (.md or .json).</p>
           </div>
           <label className="secondary-button spending-upload-picker">
             <Upload size={16} /> Choose document
             <input
               type="file"
-              accept="application/json,.json"
+              accept=".md,.markdown,text/markdown,text/plain,application/json,.json"
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
                 if (file) void inspectUpload(file);
