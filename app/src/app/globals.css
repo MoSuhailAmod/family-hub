@@ -1907,11 +1907,25 @@ a {
 }
 
 .spending-category-card {
+  width: 100%;
   display: grid;
   gap: 9px;
   min-height: 112px;
   padding: 19px;
+  border: 0;
   background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.spending-category-card:hover,
+.spending-category-card:focus-visible {
+  background: var(--surface-soft);
+  outline: none;
+}
+
+.spending-category-card:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .spending-category-card span {
@@ -1954,6 +1968,133 @@ a {
   gap: 7px;
 }
 
+.spending-category-detail {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.spending-back-button,
+.spending-transaction-sort select {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.spending-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.spending-back-button:hover,
+.spending-back-button:focus-visible {
+  background: var(--surface-soft);
+}
+
+.spending-category-detail-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 22px 0;
+}
+
+.spending-category-detail-heading h2 {
+  margin: 3px 0 5px;
+  overflow-wrap: anywhere;
+  font-size: 26px;
+}
+
+.spending-category-detail-heading p:not(.section-label) {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.spending-category-detail-heading > strong {
+  flex: 0 0 auto;
+  font-size: 22px;
+}
+
+.spending-detail-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 96px;
+  padding: 20px 0;
+  color: var(--text-muted);
+}
+
+.spending-detail-state strong {
+  color: var(--text);
+}
+
+.spending-detail-state .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.spending-transaction-sort {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.spending-transaction-sort select {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.spending-transactions-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.spending-transactions-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.spending-transactions-table th,
+.spending-transactions-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.spending-transactions-table th {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.spending-transactions-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.spending-transactions-table th:last-child,
+.spending-transactions-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
 @media (max-width: 760px) {
   .mobile-nav {
     grid-template-columns: repeat(4, 1fr);
@@ -1989,5 +2130,21 @@ a {
   .spending-category-card {
     min-height: 98px;
     padding: 15px;
+  }
+
+  .spending-category-detail {
+    padding: 18px 16px;
+  }
+
+  .spending-category-detail-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+    margin: 18px 0;
+  }
+
+  .spending-transaction-sort {
+    align-items: start;
+    flex-direction: column;
   }
 }

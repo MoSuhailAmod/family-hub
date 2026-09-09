@@ -87,3 +87,86 @@ test("returns an empty overview when no imported spending periods exist", async 
     categories: [],
   });
 });
+
+test("loads every source transaction for a selected category without changing imported values", async () => {
+  const selectedPeriod = {
+    ...latestPeriod,
+    sourceProducer: "bank import",
+    sourcePeriodKey: "2026/02",
+  };
+  const selectedCategory = {
+    sourceCategoryKey: "fuel & travel",
+    name: "Fuel & travel",
+    total: "734.56",
+  };
+  const transactions = [
+    {
+      sourceTransactionKey: "garage-1",
+      date: "2026-02-03",
+      description: "Coastal Garage",
+      amount: "-250.00",
+    },
+    {
+      sourceTransactionKey: "toll-1",
+      date: "2026-02-14",
+      description: "Metro Toll",
+      amount: "34.56",
+    },
+  ];
+  const requestedUrls: string[] = [];
+  const fetcher: typeof fetch = async (url) => {
+    requestedUrls.push(String(url));
+    if (
+      String(url) ===
+      "/api/spending/periods/2026%2F02/categories/fuel%20%26%20travel/transactions?sourceProducer=bank+import"
+    ) {
+      return Response.json({ transactions });
+    }
+    return new Response(null, { status: 404 });
+  };
+
+  const { loadSpendingCategoryTransactions } = await import("./spending-client");
+  const result = await loadSpendingCategoryTransactions(fetcher, selectedPeriod, selectedCategory);
+
+  assert.deepEqual(result, transactions);
+  assert.deepEqual(requestedUrls, [
+    "/api/spending/periods/2026%2F02/categories/fuel%20%26%20travel/transactions?sourceProducer=bank+import",
+  ]);
+});
+
+test("sorts transaction rows by their source date by default and supports amount sorting", async () => {
+  const { sortSpendingTransactions } = await import("./spending-client");
+  const transactions = [
+    { sourceTransactionKey: "later", date: "2026-02-14", description: "Later", amount: "5.00" },
+    { sourceTransactionKey: "earlier", date: "2026-02-03", description: "Earlier", amount: "20.00" },
+  ];
+
+  assert.deepEqual(
+    sortSpendingTransactions(transactions, "date"),
+    [transactions[1], transactions[0]],
+  );
+  assert.deepEqual(
+    sortSpendingTransactions(transactions, "amount-desc"),
+    [transactions[1], transactions[0]],
+  );
+});
+
+test("sorts arbitrary-precision imported decimal amounts without rounding them", async () => {
+  const { sortSpendingTransactions } = await import("./spending-client");
+  const transactions = [
+    {
+      sourceTransactionKey: "larger",
+      date: "2026-02-02",
+      description: "Larger",
+      amount: "9007199254740993.00",
+    },
+    {
+      sourceTransactionKey: "smaller",
+      date: "2026-02-01",
+      description: "Smaller",
+      amount: "9007199254740992.99",
+    },
+  ];
+
+  assert.deepEqual(sortSpendingTransactions(transactions, "amount"), [transactions[1], transactions[0]]);
+});
