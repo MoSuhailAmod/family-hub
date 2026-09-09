@@ -8,7 +8,7 @@ Secrets are supplied through environment variables. Real `.env` files, passwords
 
 ## MCP and external access
 
-An MCP endpoint and calendar tools are present at `/mcp`, and they call the shared calendar service layer. The presence of that endpoint does **not** mean a general authenticated external-access boundary is complete. Before exposing MCP or any future tool endpoint beyond the trusted LAN/private network, add and operate an explicit authenticated and authorized boundary.
+An MCP endpoint, including narrow Spending reconciliation tools, and calendar tools are present at `/mcp`; `POST /api/spending/reconcile` provides the equivalent trusted-LAN HTTP adapter. They call shared service layers and are not direct database interfaces. The presence of either adapter does **not** mean a general authenticated external-access boundary is complete. Before exposing MCP or the reconciliation HTTP route beyond the trusted LAN/private network, add and operate an explicit authenticated and authorized boundary.
 
 That future boundary should provide, at minimum:
 
