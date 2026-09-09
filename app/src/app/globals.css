@@ -2148,3 +2148,82 @@ a {
     flex-direction: column;
   }
 }
+
+.spending-history {
+  margin-top: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.spending-history-view select,
+.spending-category-trend select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.spending-history-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+
+.spending-comparison-card,
+.spending-history-categories,
+.spending-category-trend,
+.spending-trend-table-wrap {
+  padding: 20px 22px;
+  background: var(--surface);
+}
+
+.spending-comparison-card > strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 24px;
+}
+
+.spending-comparison-card p:not(.section-label),
+.spending-history-categories > p,
+.spending-history-note,
+.spending-history-state {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.spending-change-up { color: var(--danger); }
+.spending-change-down { color: var(--success); }
+
+.spending-trend-table-wrap { overflow-x: auto; }
+.spending-trend-table { width: 100%; min-width: 300px; border-collapse: collapse; font-size: 14px; }
+.spending-trend-table caption { padding-bottom: 10px; color: var(--text-muted); text-align: left; font-size: 13px; }
+.spending-trend-table th, .spending-trend-table td { padding: 10px 0; border-bottom: 1px solid var(--border); text-align: left; }
+.spending-trend-table th { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.spending-trend-table th:last-child, .spending-trend-table td:last-child { text-align: right; white-space: nowrap; }
+.spending-trend-table .is-selected td { color: var(--accent); font-weight: 700; }
+
+.spending-history-categories h3 { margin: 0 0 4px; font-size: 17px; }
+.spending-history-category-list, .spending-category-trend ul { margin: 16px 0 0; padding: 0; list-style: none; }
+.spending-history-category-list li, .spending-category-trend li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.spending-history-category-list span, .spending-category-trend span { min-width: 0; overflow-wrap: anywhere; color: var(--text-muted); }
+.spending-history-category-list strong, .spending-category-trend strong { white-space: nowrap; }
+.spending-category-trend label { display: grid; gap: 7px; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.spending-history-state { display: flex; align-items: center; gap: 12px; min-height: 96px; padding: 20px 22px; }
+.spending-history-state strong { color: var(--text); }
+.spending-history-state .secondary-button { display: inline-flex; align-items: center; gap: 7px; }
+.spending-history-note { padding: 14px 22px; border-top: 1px solid var(--border); }
+
+@media (max-width: 620px) {
+  .spending-history-content { grid-template-columns: 1fr; }
+  .spending-history-view { width: 100%; }
+  .spending-history-view select { width: 100%; }
+  .spending-comparison-card, .spending-history-categories, .spending-category-trend, .spending-trend-table-wrap { padding: 18px 16px; }
+  .spending-history-note, .spending-history-state { padding-right: 16px; padding-left: 16px; }
+}
