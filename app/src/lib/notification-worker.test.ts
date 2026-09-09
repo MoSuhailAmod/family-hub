@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createNotificationWorker } from "./notification-worker";
+import { remindersDueQuery } from "./notification-worker-data";
 
 const now = new Date("2026-09-08T08:00:00.000Z");
 const reminder = {
@@ -8,6 +9,11 @@ const reminder = {
   startAt: new Date("2026-09-08T08:10:00.000Z"), endAt: new Date("2026-09-08T09:00:00.000Z"),
   recurrenceRule: null, offsetMinutes: 10, participantIds: ["member-1"],
 };
+
+test("casts due-reminder timestamp parameters before subtracting intervals", () => {
+  assert.match(remindersDueQuery, /e\.start_at >= \$1::timestamptz - INTERVAL '8 days'/);
+  assert.match(remindersDueQuery, /e\.start_at <= \$2::timestamptz \+ INTERVAL '8 days'/);
+});
 
 test("dispatches a due timed reminder to each current enabled destination", async () => {
   const sent: string[] = [];
