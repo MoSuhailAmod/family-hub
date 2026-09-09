@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+  <style>
+    text{font-family:Arial,Helvetica,sans-serif;fill:#13233a} .title{font-size:34px;font-weight:700}.h{font-size:22px;font-weight:700}.b{font-size:16px}.s{font-size:13px;fill:#617086}.card{fill:#fff;stroke:#dbe3ec;stroke-width:2;rx:18}.blue{fill:#eaf3ff}.purple{fill:#f1edff}.green{fill:#eaf8f0}.amber{fill:#fff5df}.pink{fill:#fff0f2}.navy{fill:#13233a}.line{stroke:#7c8da3;stroke-width:3;fill:none;marker-end:url(#arrow)}
+  </style>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c8da3"/></marker></defs>
+  <rect width="1600" height="1200" fill="#f6f8fb"/>
+  <text x="70" y="65" class="title">Family Hub Spending V2 — Approved Design Reference</text>
+  <text x="70" y="95" class="s">ChatGPT ingestion · Family Hub reconciliation · PostgreSQL runtime source · read-only dashboard</text>
+
+  <!-- Data flow panel -->
+  <rect x="50" y="130" width="1500" height="250" class="card"/>
+  <text x="80" y="170" class="h">1. Data flow</text>
+  <g transform="translate(85,210)">
+    <rect width="190" height="110" class="blue" rx="16"/><text x="95" y="30" text-anchor="middle" class="b" font-weight="700">Cumulative Markdown</text><text x="95" y="58" text-anchor="middle" class="s">uploaded to ChatGPT</text><text x="95" y="82" text-anchor="middle" class="s">all periods included</text>
+    <path d="M205 55 H270" class="line"/>
+    <rect x="280" width="190" height="110" class="purple" rx="16"/><text x="375" y="30" text-anchor="middle" class="b" font-weight="700">ChatGPT</text><text x="375" y="58" text-anchor="middle" class="s">validate + extract</text><text x="375" y="82" text-anchor="middle" class="s">structured snapshot</text>
+    <path d="M485 55 H550" class="line"/>
+    <rect x="560" width="210" height="110" class="amber" rx="16"/><text x="665" y="30" text-anchor="middle" class="b" font-weight="700">Reconciliation service</text><text x="665" y="58" text-anchor="middle" class="s">insert / update / skip</text><text x="665" y="82" text-anchor="middle" class="s">partial → completed</text>
+    <path d="M785 55 H850" class="line"/>
+    <rect x="860" width="190" height="110" class="green" rx="16"/><text x="955" y="30" text-anchor="middle" class="b" font-weight="700">PostgreSQL</text><text x="955" y="58" text-anchor="middle" class="s">periods + categories</text><text x="955" y="82" text-anchor="middle" class="s">transactions + provenance</text>
+    <path d="M1065 55 H1130" class="line"/>
+    <rect x="1140" width="210" height="110" class="blue" rx="16"/><text x="1245" y="30" text-anchor="middle" class="b" font-weight="700">Spending UI</text><text x="1245" y="58" text-anchor="middle" class="s">reads only from DB</text><text x="1245" y="82" text-anchor="middle" class="s">dashboard + history</text>
+  </g>
+
+  <!-- User flow panel -->
+  <rect x="50" y="405" width="730" height="330" class="card"/>
+  <text x="80" y="445" class="h">2. User flow</text>
+  <text x="95" y="490" class="b" font-weight="700">Monthly / twice-monthly</text>
+  <rect x="95" y="515" width="250" height="55" class="blue" rx="12"/><text x="220" y="548" text-anchor="middle" class="b">Upload latest .md to ChatGPT</text>
+  <path d="M220 575 V610" class="line"/>
+  <rect x="95" y="620" width="250" height="55" class="purple" rx="12"/><text x="220" y="653" text-anchor="middle" class="b">Agent reconciles Family Hub</text>
+  <path d="M360 648 H425" class="line"/>
+  <rect x="435" y="620" width="270" height="55" class="green" rx="12"/><text x="570" y="645" text-anchor="middle" class="b">5 unchanged · 1 updated</text><text x="570" y="665" text-anchor="middle" class="s">1 new · 1 partial refreshed</text>
+  <text x="95" y="705" class="b" font-weight="700">Day-to-day</text>
+  <text x="220" y="705" class="s">Open Spending → view DB-backed dashboard; no file needed</text>
+
+  <!-- DB panel -->
+  <rect x="820" y="405" width="730" height="330" class="card"/>
+  <text x="850" y="445" class="h">3. Database direction</text>
+  <g class="s">
+    <rect x="865" y="480" width="210" height="70" class="purple" rx="10"/><text x="970" y="510" text-anchor="middle" class="b" font-weight="700">import documents</text><text x="970" y="532" text-anchor="middle">hash · revision · source</text>
+    <rect x="1130" y="480" width="210" height="70" class="green" rx="10"/><text x="1235" y="510" text-anchor="middle" class="b" font-weight="700">periods</text><text x="1235" y="532" text-anchor="middle">dates · total · status</text>
+    <rect x="865" y="600" width="210" height="70" class="amber" rx="10"/><text x="970" y="630" text-anchor="middle" class="b" font-weight="700">period categories</text><text x="970" y="652" text-anchor="middle">authoritative totals</text>
+    <rect x="1130" y="600" width="210" height="70" class="blue" rx="10"/><text x="1235" y="630" text-anchor="middle" class="b" font-weight="700">transactions</text><text x="1235" y="652" text-anchor="middle">date · description · amount</text>
+    <path d="M1075 515 H1120" class="line"/><path d="M1235 555 V590" class="line"/><path d="M1120 635 H1085" class="line"/>
+    <text x="1390" y="505" class="b" font-weight="700">reconciliation log</text><text x="1390" y="530">insert / update / unchanged</text><text x="1390" y="550">partial refresh / completion</text>
+  </g>
+
+  <!-- UI panel -->
+  <rect x="50" y="760" width="1500" height="390" class="card"/>
+  <text x="80" y="800" class="h">4. Spending dashboard mockup direction</text>
+  <g transform="translate(100,830)">
+    <rect width="350" height="280" fill="#f5f7fa" stroke="#dbe3ec" stroke-width="2" rx="24"/>
+    <text x="28" y="35" class="s">HOUSEHOLD FINANCES</text><text x="28" y="70" class="h">Spending</text>
+    <rect x="24" y="90" width="302" height="86" fill="#fff" stroke="#dbe3ec" rx="15"/><text x="44" y="118" class="b" font-weight="700">August 2026</text><text x="270" y="118" class="s" fill="#24845f">COMPLETED</text><text x="44" y="150" class="h">R57,409.87</text><text x="44" y="168" class="s">Last synced via agent import</text>
+    <rect x="24" y="190" width="94" height="62" fill="#fff" stroke="#dbe3ec" rx="12"/><text x="71" y="214" text-anchor="middle" class="s">Categories</text><text x="71" y="240" text-anchor="middle" class="b" font-weight="700">14</text>
+    <rect x="128" y="190" width="94" height="62" fill="#fff" stroke="#dbe3ec" rx="12"/><text x="175" y="214" text-anchor="middle" class="s">Transactions</text><text x="175" y="240" text-anchor="middle" class="b" font-weight="700">122</text>
+    <rect x="232" y="190" width="94" height="62" fill="#fff" stroke="#dbe3ec" rx="12"/><text x="279" y="214" text-anchor="middle" class="s">vs July</text><text x="279" y="240" text-anchor="middle" class="b" font-weight="700">+1.1%</text>
+  </g>
+  <g transform="translate(500,830)">
+    <rect width="460" height="130" class="blue" rx="16"/><text x="24" y="35" class="b" font-weight="700">Spending by category</text><circle cx="85" cy="82" r="35" fill="none" stroke="#6b91d8" stroke-width="18"/><circle cx="85" cy="82" r="35" fill="none" stroke="#73b79a" stroke-width="18" stroke-dasharray="65 155"/><text x="150" y="70" class="b">Groceries  R10,803</text><text x="150" y="95" class="b">Savings  R7,331</text><text x="150" y="120" class="b">Utilities  R5,506</text>
+    <rect y="150" width="460" height="95" class="amber" rx="16"/><text x="24" y="182" class="b" font-weight="700">Current period available</text><text x="24" y="208" class="b">28 Aug – 27 Sep</text><text x="315" y="208" class="b" fill="#9a6a12">PARTIAL</text><text x="24" y="230" class="s">View current spending →</text>
+  </g>
+  <g transform="translate(1010,830)">
+    <rect width="430" height="245" class="green" rx="16"/><text x="24" y="35" class="b" font-weight="700">Spending history</text><path d="M35 175 L90 145 L145 158 L200 110 L255 128 L310 90 L365 105" fill="none" stroke="#4f78bd" stroke-width="5"/><text x="35" y="205" class="s">Mar</text><text x="92" y="205" class="s">Apr</text><text x="147" y="205" class="s">May</text><text x="202" y="205" class="s">Jun</text><text x="257" y="205" class="s">Jul</text><text x="312" y="205" class="s">Aug</text><text x="24" y="232" class="s">Recent transactions and drill-down below</text>
+  </g>
+  <text x="100" y="1130" class="s">Approved principle: the dashboard has no normal document-upload control; it displays persisted Family Hub data.</text>
+</svg>
