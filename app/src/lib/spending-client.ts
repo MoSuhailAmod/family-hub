@@ -58,6 +58,23 @@ export type SpendingDashboard = SpendingOverview & {
   partialPeriod: SpendingPeriod | null;
 };
 
+export function previousComparablePeriod(
+  history: SpendingHistoryEntry[],
+  selected: SpendingPeriod,
+): SpendingPeriod | null {
+  if (selected.status === "partial") return null;
+  const selectedIndex = history.findIndex((entry) =>
+    entry.period.sourceProducer === selected.sourceProducer &&
+    entry.period.sourcePeriodKey === selected.sourcePeriodKey,
+  );
+  if (selectedIndex < 0) return null;
+  return history.slice(selectedIndex + 1).find((entry) =>
+    entry.period.status !== "partial" &&
+    entry.period.sourceProducer === selected.sourceProducer &&
+    entry.period.currency === selected.currency,
+  )?.period ?? null;
+}
+
 async function requestJson<T>(fetcher: typeof fetch, url: string): Promise<T> {
   const response = await fetcher(url);
   if (!response.ok) throw new Error("Unable to load spending data");
@@ -142,7 +159,12 @@ export function calculatePeriodComparison(
   selectedPeriod: SpendingPeriod,
   previousPeriod: SpendingPeriod | null,
 ): SpendingPeriodComparison | null {
-  if (!previousPeriod || selectedPeriod.currency !== previousPeriod.currency) return null;
+  if (
+    !previousPeriod ||
+    selectedPeriod.status === "partial" ||
+    previousPeriod.status === "partial" ||
+    selectedPeriod.currency !== previousPeriod.currency
+  ) return null;
   const scale = Math.max(decimalParts(selectedPeriod.total).fraction.length, decimalParts(previousPeriod.total).fraction.length);
   const difference =
     decimalToScaledInteger(selectedPeriod.total, scale) - decimalToScaledInteger(previousPeriod.total, scale);

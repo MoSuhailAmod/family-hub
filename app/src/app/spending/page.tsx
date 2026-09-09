@@ -16,6 +16,7 @@ import {
   loadSpendingCategoryTransactions,
   loadSpendingDashboard,
   loadSpendingHistory,
+  previousComparablePeriod,
   sortSpendingTransactions,
   type SpendingCategory,
   type SpendingHistoryEntry,
@@ -48,14 +49,6 @@ function categoryId(
       ? `source:${category.sourceCategoryKey}`
       : `sources:${[...category.sourceCategoryKeys].sort().join("\u0000")}`;
   return `${sourceProducer}\u0000${categoryKey}`;
-}
-
-function previousComparablePeriod(history: SpendingHistoryEntry[], selected: SpendingPeriod) {
-  const selectedIndex = history.findIndex((entry) => periodId(entry.period) === periodId(selected));
-  if (selectedIndex < 0) return null;
-  return history.slice(selectedIndex + 1).find((entry) =>
-    entry.period.sourceProducer === selected.sourceProducer && entry.period.currency === selected.currency,
-  )?.period ?? null;
 }
 
 function signedAmount(currency: string, value: string) {

@@ -7,6 +7,7 @@ import {
   loadSpendingDashboard,
   loadSpendingHistory,
   loadSpendingOverview,
+  previousComparablePeriod,
 } from "./spending-client";
 
 const latestPeriod = {
@@ -193,7 +194,7 @@ test("loads dynamically returned raw or normalized categories for every historic
   ]);
 });
 
-test("compares a selected complete period only with its preceding same-currency source period", () => {
+test("compares only completed same-currency source periods", () => {
   const previous = { ...latestPeriod, sourcePeriodKey: "2026/02", total: "900.00" };
   const current = { ...latestPeriod, total: "1234.56" };
 
@@ -202,7 +203,16 @@ test("compares a selected complete period only with its preceding same-currency 
     percentageChange: "37.2",
   });
   assert.equal(calculatePeriodComparison(current, { ...previous, currency: "USD" }), null);
+  assert.equal(calculatePeriodComparison({ ...current, status: "partial" }, { ...previous, status: "completed" }), null);
+  assert.equal(calculatePeriodComparison({ ...current, status: "completed" }, { ...previous, status: "partial" }), null);
   assert.equal(calculatePeriodComparison(current, null), null);
+});
+
+test("does not select a completed comparison period for a selected partial period", () => {
+  const completed = { ...latestPeriod, sourcePeriodKey: "2026/02", status: "completed" as const };
+  const partial = { ...latestPeriod, sourcePeriodKey: "2026/03", status: "partial" as const };
+
+  assert.equal(previousComparablePeriod([partial, completed].map((period) => ({ period, categories: [] })), partial), null);
 });
 
 test("loads every source transaction for a selected category without changing imported values", async () => {
