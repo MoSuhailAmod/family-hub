@@ -9,7 +9,7 @@ This is the implementation-level source of truth for Family Hub. The [root READM
 - [Database](database.md) — Drizzle schema, relationships, migrations, and seed data.
 - [Calendar and recurrence](calendar-and-recurrence.md) — event domain rules, expansion, transactions, and UI behaviour.
 - [APIs and services](api-and-services.md) — HTTP/MCP adapters and calendar contracts.
-- [Spending imports](spending-imports.md) — existing Spending import implementation and validation rules; see the V2 decision below for the approved replacement direction.
+- [Spending ingestion (superseded)](spending-imports.md) — records retirement of the legacy in-page upload workflow and links to the approved V2 replacement.
 - [ADR-001: Spending V2 agent ingestion](adr/ADR-001-spending-v2-agent-ingestion.md) — approved architecture for ChatGPT-led cumulative ingestion, reconciliation, database persistence, and presentation-only Spending UI.
 - [Spending V2 design reference](design/spending-v2/README.md) — approved data flow, user flow, database direction, and dashboard mockup.
 - [Security](security.md) — current trust model and future authenticated integration boundary.
