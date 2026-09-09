@@ -2,68 +2,72 @@
 
 ## Input formats
 
-The normal household-facing input is a completed monthly Markdown document (`.md`; `.markdown` is also accepted). The file picker also keeps `.json` support for the machine-readable `spending-import/v1` contract.
+The normal household-facing input is a completed household Spending Markdown document (`.md`; `.markdown` is also accepted). The file picker also keeps `.json` support for the machine-readable `spending-import/v1` contract.
 
 Markdown is a deterministic adapter to that same canonical contract. It does not create another database or persistence route: after preview, the existing Spending import endpoint and service validate, de-duplicate, and replace imported snapshots exactly as they do for JSON.
 
-Family Hub treats the monthly report as the final source of truth. It does not recalculate totals from transaction rows, categorise merchants, apply exclusions, match refunds, or reinterpret financial data.
+Family Hub treats the completed report as the final source of truth. It does not recalculate totals from transaction rows, categorise merchants, apply exclusions, match refunds, or reinterpret financial data.
 
-## Supported Markdown structure
+## Supported household Markdown structure
 
-The Markdown document must use this explicit structure. Values shown below are sanitized examples only.
+The parser accepts the established `Household Spending Budget.md` report shape. Values below are sanitized examples only.
 
 ```md
 # Household Spending Budget
 
-## Reporting period
-- Period: 2026-08
-- Start date: 2026-08-01
-- End date: 2026-08-31
-- Currency: ZAR
-- Total spend: 18432.75
+## Summary -- spending by category, all periods
 
-## Categories
+This cumulative summary is ignored.
 
-### Groceries
-- Total: 5634.20
+## 28 Jul 2026 - 27 Aug 2026
 
-| Date | Description | Amount |
-| --- | --- | ---: |
-| 2026-08-03 | Example Market | 742.50 |
+### <a id="p5-bank-charges"></a>Bank Charges
+- 30 Jul 2026 -- Service Fees -- R0.96
+- 15 Aug 2026 -- Account fee -- R517.85
+**Total Bank Charges = R518.81**
 
-### Housing
-- Total: 12798.55
+### <a id="p5-groceries"></a>Groceries
+- 01 Aug 2026 -- Example Market -- R742.50
+**Total Groceries = R742.50**
+
+### <a id="p5-total"></a>TOTAL SPENDING THIS PERIOD = R1,261.31
+
+### Excluded
+- 20 Aug 2026 -- Reimbursement -- R10.00
+
+## 28 Aug 2026 - 27 Sep 2026 (PARTIAL)
+
+This in-progress period is ignored.
 ```
 
 Requirements:
 
 - The document has exactly one `# Household Spending Budget` heading.
-- `Period` is a unique valid calendar month in `YYYY-MM` format and is the source period key.
-- `Start date` and `End date` are unique ISO dates (`YYYY-MM-DD`).
-- `Currency` is one ISO 4217 code, such as `ZAR`.
-- `Total spend` is the authoritative final period amount.
-- `## Categories` contains one or more `###` category headings, each with exactly one final `Total`.
-- Optional transaction detail for a category uses a `Date | Description | Amount` Markdown table. Transaction rows are retained as supplied; they are never summed to validate or replace the category total.
-- Amounts may use thousands commas and an optional `ZAR` or `R` prefix. Decimal commas, missing values, duplicate values, malformed tables, and other ambiguous values are rejected instead of coerced.
+- A period heading uses `## <start date> - <end date>`, with report dates such as `28 Jul 2026`.
+- The document must contain exactly one completed period. A non-final/in-progress period must be explicitly marked `PARTIAL` in its heading. If more than one completed period is present, Family Hub stops with a clear validation error instead of guessing which period to import.
+- The completed period has anchored (or plain) `###` category headings, an explicit `**Total <category> = R...**` for every category, and one `TOTAL SPENDING THIS PERIOD = R...` heading.
+- Transaction detail uses `- <date> -- <description> -- R<amount>` bullet rows. Rows are retained as supplied; they are never summed to validate or replace the category total.
+- `### Excluded` and its contents, plus the cumulative summary section, are ignored. They are never treated as spending.
+- Amounts may use thousands commas and an `R` or `ZAR` prefix. Missing/duplicate totals, malformed transaction rows, unsupported dates, and other ambiguous values are rejected rather than coerced.
 
 ## Generated identity rules
 
 The adapter generates the source fields necessary for the existing import model; users never need to enter IDs or hashes manually.
 
 - `source.producer` is always `family-hub-household-spending-markdown`.
-- `period.sourcePeriodKey` is the report's `Period` value.
-- `source.documentId` is `household-spending-<Period>`, keeping amendments for one logical month together.
+- `period.sourcePeriodKey` is `<start ISO date>-to-<end ISO date>` from the selected completed report heading, for example `2026-07-28-to-2026-08-27`.
+- `source.documentId` is `household-spending-<sourcePeriodKey>`, keeping amendments for one logical report period together.
 - `source.revision` is `markdown-<sha256 of exact Markdown content>`. The same file is an identical revision; changed Markdown becomes a new revision for the same period.
-- `source.issuedAt` is deterministically midnight UTC on the day after the supplied period end date.
+- `source.issuedAt` is deterministically midnight UTC on the day after the selected period end date.
 - `source.contentSha256` is SHA-256 of the canonical `spending-import/v1` payload with `source.contentSha256` omitted, matching the import contract.
 - `category.sourceCategoryKey` is the stable lowercase, punctuation-normalized category heading (for example, `Pet care` becomes `pet-care`).
-- `transaction.sourceTransactionKey` is `<category key>-<date>-<row number>` within the source document.
+- `transaction.sourceTransactionKey` is `<category key>-<date>-<row number>` within the selected source period.
 
 Consequences:
 
 - Re-uploading the exact same Markdown file produces the same revision identity and is handled as a duplicate.
-- Changing a document for the same `Period` produces a changed revision/content hash and goes through the existing explicit replacement confirmation before import.
-- The same logical category heading produces the same category key across months.
+- Changing a document for the same selected period produces a changed revision/content hash and goes through the existing explicit replacement confirmation before import.
+- The same logical category heading produces the same category key across periods.
 
 ## Preview and validation
 

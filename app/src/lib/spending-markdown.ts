@@ -2,8 +2,13 @@ import type { SpendingUploadDocument } from "./spending-upload";
 
 const MARKDOWN_PRODUCER = "family-hub-household-spending-markdown";
 const MAX_SPENDING_UPLOAD_BYTES = 5 * 1024 * 1024;
+const MONTHS = new Map([
+  ["jan", 0], ["feb", 1], ["mar", 2], ["apr", 3], ["may", 4], ["jun", 5],
+  ["jul", 6], ["aug", 7], ["sep", 8], ["oct", 9], ["nov", 10], ["dec", 11],
+]);
 
 type Category = SpendingUploadDocument["categories"][number];
+type PeriodSection = { startDate: string; endDate: string; partial: boolean; content: string };
 
 function canonicalize(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -22,33 +27,28 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function requireSingleMatch(content: string, label: string, expression: RegExp): string {
-  const matches = Array.from(content.matchAll(expression)).map((match) => match[1].trim());
-  if (matches.length !== 1) {
-    throw new Error(matches.length === 0
-      ? `The Markdown document is missing ${label}.`
-      : `The Markdown document has ambiguous ${label}.`);
-  }
-  return matches[0];
-}
-
-function parseDate(value: string, label: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new Error(`${label} must be an ISO date in YYYY-MM-DD format.`);
-  }
-  const date = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
-    throw new Error(`${label} must be an ISO date in YYYY-MM-DD format.`);
-  }
-  return value;
-}
-
 function parseAmount(value: string, label: string): string {
   const normalized = value.trim().replace(/^(?:ZAR\s*|R\s*)/i, "").replaceAll(",", "");
   if (!/^[+-]?\d+(?:\.\d+)?$/.test(normalized)) {
     throw new Error(`${label} must be an unambiguous decimal amount.`);
   }
   return normalized;
+}
+
+function parseHumanDate(value: string, label: string): string {
+  const match = value.trim().match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
+  if (!match) throw new Error(`${label} must use the report date format, for example 28 Jul 2026.`);
+  const month = MONTHS.get(match[2].slice(0, 3).toLowerCase());
+  const day = Number(match[1]);
+  const year = Number(match[3]);
+  if (month === undefined || day < 1 || day > 31) {
+    throw new Error(`${label} must use the report date format, for example 28 Jul 2026.`);
+  }
+  const date = new Date(Date.UTC(year, month, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) {
+    throw new Error(`${label} must be a valid calendar date.`);
+  }
+  return date.toISOString().slice(0, 10);
 }
 
 function sourceCategoryKey(name: string): string {
@@ -62,79 +62,95 @@ function sourceCategoryKey(name: string): string {
   return key;
 }
 
-function splitTableRow(line: string): string[] {
-  return line.trim().replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim());
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function isTableDivider(row: string[]) {
-  return row.every((cell) => /^:?-{3,}:?$/.test(cell));
+function requireSingleMatch(content: string, label: string, expression: RegExp): string {
+  const matches = Array.from(content.matchAll(expression)).map((match) => match[1].trim());
+  if (matches.length !== 1) {
+    throw new Error(matches.length === 0
+      ? `The Markdown document is missing ${label}.`
+      : `The Markdown document has ambiguous ${label}.`);
+  }
+  return matches[0];
 }
 
-function parseTransactions(lines: string[], categoryKey: string): Category["transactions"] {
-  const tables = lines
-    .map((line, index) => ({ line, index }))
-    .filter(({ line }) => line.trim().startsWith("|"));
-  if (tables.length === 0) return undefined;
+function parsePeriodSections(content: string): PeriodSection[] {
+  const headings = Array.from(content.matchAll(/^##\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\s+-\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})(.*?)\s*$/gim));
+  return headings.map((heading, index) => {
+    const start = heading.index! + heading[0].length;
+    const end = headings[index + 1]?.index ?? content.length;
+    return {
+      startDate: parseHumanDate(heading[1], "Period start date"),
+      endDate: parseHumanDate(heading[2], "Period end date"),
+      partial: /\bpartial\b/i.test(heading[3]),
+      content: content.slice(start, end),
+    };
+  });
+}
 
-  const firstIndex = tables[0].index;
-  const header = splitTableRow(lines[firstIndex]);
-  if (header.length !== 3 || header.map((cell) => cell.toLowerCase()).join("\u0000") !== "date\u0000description\u0000amount") {
-    throw new Error(`Transactions for category "${categoryKey}" must use a Date, Description, Amount table.`);
-  }
-  if (!lines[firstIndex + 1] || !isTableDivider(splitTableRow(lines[firstIndex + 1]))) {
-    throw new Error(`Transactions for category "${categoryKey}" must include a Markdown table divider.`);
-  }
+function categoryHeadingName(heading: string): string {
+  return heading.replace(/^<a\b[^>]*><\/a>\s*/i, "").trim();
+}
 
-  const transactions: NonNullable<Category["transactions"]> = [];
-  for (let index = firstIndex + 2; index < lines.length; index += 1) {
-    const line = lines[index].trim();
-    if (!line) continue;
-    if (!line.startsWith("|")) {
-      throw new Error(`Transactions for category "${categoryKey}" must be Markdown table rows.`);
+function parseTransactions(content: string, categoryKey: string): Category["transactions"] {
+  const bullets = content.split("\n").filter((line) => /^\s*-\s+/.test(line));
+  if (bullets.length === 0) return undefined;
+
+  return bullets.map((line, index) => {
+    const match = line.match(/^\s*-\s*(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\s+--\s+(.+)\s+--\s+((?:ZAR|R)\s*[+-]?[\d,]+(?:\.\d+)?)\s*$/i);
+    if (!match) {
+      throw new Error(`Transaction rows for category "${categoryKey}" must use Date -- Description -- Amount.`);
     }
-    const row = splitTableRow(line);
-    if (row.length !== 3) throw new Error(`Transactions for category "${categoryKey}" has an invalid table row.`);
-    const date = parseDate(row[0], `Transaction date in category "${categoryKey}"`);
-    const description = row[1];
+    const description = match[2].trim();
     if (!description) throw new Error(`Transactions for category "${categoryKey}" must include a description.`);
-    transactions.push({
-      sourceTransactionKey: `${categoryKey}-${date}-${transactions.length + 1}`,
+    const date = parseHumanDate(match[1], `Transaction date in category "${categoryKey}"`);
+    return {
+      sourceTransactionKey: `${categoryKey}-${date}-${index + 1}`,
       date,
       description,
-      amount: parseAmount(row[2], `Transaction amount in category "${categoryKey}"`),
-    });
-  }
-  return transactions;
+      amount: parseAmount(match[3], `Transaction amount in category "${categoryKey}"`),
+    };
+  });
 }
 
 function parseCategories(content: string): Category[] {
-  const categorySections = Array.from(content.matchAll(/^##\s+Categories\s*$/gim));
-  if (categorySections.length !== 1) {
-    throw new Error(categorySections.length === 0
-      ? "The Markdown document is missing the ## Categories section."
-      : "The Markdown document has ambiguous ## Categories sections.");
-  }
-  const categoriesIndex = categorySections[0].index!;
-  const section = content.slice(categoriesIndex).split(/\n(?=##\s+)/)[0];
-  const headings = Array.from(section.matchAll(/^###\s+(.+?)\s*$/gm));
-  if (headings.length === 0) throw new Error("The Markdown document must include at least one ### category.");
-
+  const headings = Array.from(content.matchAll(/^###\s+(.+?)\s*$/gm));
+  const categories: Category[] = [];
   const keys = new Set<string>();
-  return headings.map((heading, index) => {
-    const name = heading[1].trim();
+
+  let excluded = false;
+  for (let index = 0; index < headings.length; index += 1) {
+    const name = categoryHeadingName(headings[index][1]);
+    const start = headings[index].index! + headings[index][0].length;
+    const end = headings[index + 1]?.index ?? content.length;
+    const categoryContent = content.slice(start, end);
+
+    if (/^excluded$/i.test(name)) {
+      excluded = true;
+      continue;
+    }
+    if (/^total spending this period\s*=/i.test(name)) continue;
+    if (excluded) continue;
+
     const key = sourceCategoryKey(name);
     if (keys.has(key)) throw new Error(`The Markdown document has ambiguous category "${name}".`);
     keys.add(key);
-    const start = heading.index! + heading[0].length;
-    const end = headings[index + 1]?.index ?? section.length;
-    const categoryContent = section.slice(start, end);
     const total = parseAmount(
-      requireSingleMatch(categoryContent, `a final total for category "${name}"`, /^\s*(?:[-*]\s*)?Total\s*:\s*(.+?)\s*$/gim),
+      requireSingleMatch(
+        categoryContent,
+        `a final total for category "${name}"`,
+        new RegExp(`^\\s*\\*\\*\\s*Total\\s+${escapeRegExp(name)}\\s*=\\s*(.+?)\\s*\\*\\*\\s*$`, "gim"),
+      ),
       `Final total for category "${name}"`,
     );
-    const transactions = parseTransactions(categoryContent.split("\n"), key);
-    return { sourceCategoryKey: key, name, total, ...(transactions === undefined ? {} : { transactions }) };
-  });
+    const transactions = parseTransactions(categoryContent, key);
+    categories.push({ sourceCategoryKey: key, name, total, ...(transactions === undefined ? {} : { transactions }) });
+  }
+
+  if (categories.length === 0) throw new Error("The completed reporting period must include at least one category.");
+  return categories;
 }
 
 function issuedAtAfter(endDate: string): string {
@@ -154,32 +170,42 @@ export async function parseSpendingMarkdownDocument(content: string): Promise<Sp
       : "The Markdown document has an ambiguous Household Spending Budget heading.");
   }
 
-  const period = requireSingleMatch(content, "reporting period", /^\s*(?:[-*]\s*)?Period\s*:\s*(.+?)\s*$/gim);
-  if (!/^\d{4}-\d{2}$/.test(period) || Number(period.slice(5, 7)) < 1 || Number(period.slice(5, 7)) > 12) {
-    throw new Error("Reporting period must be a valid calendar month in YYYY-MM format.");
+  const completed = parsePeriodSections(content).filter((period) => !period.partial);
+  if (completed.length === 0) {
+    throw new Error("The Markdown document does not contain a completed reporting period; mark in-progress periods as PARTIAL.");
   }
-  const startDate = parseDate(requireSingleMatch(content, "start date", /^\s*(?:[-*]\s*)?Start date\s*:\s*(.+?)\s*$/gim), "Start date");
-  const endDate = parseDate(requireSingleMatch(content, "end date", /^\s*(?:[-*]\s*)?End date\s*:\s*(.+?)\s*$/gim), "End date");
-  if (startDate > endDate) throw new Error("End date must be on or after start date.");
-  const currency = requireSingleMatch(content, "currency", /^\s*(?:[-*]\s*)?Currency\s*:\s*(.+?)\s*$/gim);
-  if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Currency must be a three-letter ISO 4217 code.");
-  const total = parseAmount(
-    requireSingleMatch(content, "final total spend", /^\s*(?:[-*]\s*)?Total spend\s*:\s*(.+?)\s*$/gim),
-    "Final total spend",
-  );
+  if (completed.length > 1) {
+    throw new Error("The Markdown document contains more than one completed period; upload a report with one completed period or mark non-final periods as PARTIAL.");
+  }
 
+  const selected = completed[0];
+  const periodKey = `${selected.startDate}-to-${selected.endDate}`;
+  const total = parseAmount(
+    requireSingleMatch(
+      selected.content,
+      "a final total for the completed reporting period",
+      /^###\s+(?:<a\b[^>]*><\/a>\s*)?TOTAL SPENDING THIS PERIOD\s*=\s*(.+?)\s*$/gim,
+    ),
+    "Final total for the completed reporting period",
+  );
   const source = {
     producer: MARKDOWN_PRODUCER,
-    documentId: `household-spending-${period}`,
+    documentId: `household-spending-${periodKey}`,
     revision: `markdown-${await sha256(content)}`,
-    issuedAt: issuedAtAfter(endDate),
+    issuedAt: issuedAtAfter(selected.endDate),
     contentSha256: "",
   };
   const document: SpendingUploadDocument = {
     schemaVersion: "spending-import/v1",
     source,
-    period: { sourcePeriodKey: period, startDate, endDate, currency, total },
-    categories: parseCategories(content),
+    period: {
+      sourcePeriodKey: periodKey,
+      startDate: selected.startDate,
+      endDate: selected.endDate,
+      currency: "ZAR",
+      total,
+    },
+    categories: parseCategories(selected.content),
   };
   const hashableSource = {
     producer: document.source.producer,

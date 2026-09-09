@@ -46,12 +46,41 @@ const document = JSON.stringify({
   ],
 });
 
+const markdownDocument = `# Household Spending Budget
+
+## Summary -- spending by category, all periods
+
+This cumulative summary is explanatory only and must not be imported as a period.
+
+## 28 Jul 2026 - 27 Aug 2026
+
+### <a id="p5-bank-charges"></a>Bank Charges
+- 30 Jul 2026 -- Service Fees -- R0.96
+- 15 Aug 2026 -- Account fee -- R517.85
+**Total Bank Charges = R518.81**
+
+### <a id="p5-groceries"></a>Groceries
+- 01 Aug 2026 -- Example Market -- R742.50
+- 21 Aug 2026 -- Example Foods -- R4,892.20
+**Total Groceries = R5,700.00**
+
+### <a id="p5-total"></a>TOTAL SPENDING THIS PERIOD = R6,218.81
+
+### Excluded
+- 20 Aug 2026 -- Reimbursement -- R10.00
+
+## 28 Aug 2026 - 27 Sep 2026 (PARTIAL)
+
+### <a id="p6-groceries"></a>Groceries
+- 01 Sep 2026 -- Current-month expense -- R100.00
+**Total Groceries = R100.00**
+
+### <a id="p6-total"></a>TOTAL SPENDING THIS PERIOD = R100.00
+`;
+
 test("parses a supported Spending document into a non-financial upload summary", () => {
   const summary = summarizeSpendingUpload(parseSpendingUploadDocument(document), [
-    {
-      sourceProducer: "household-spending-generator",
-      sourcePeriodKey: "2026-07",
-    },
+    { sourceProducer: "household-spending-generator", sourcePeriodKey: "2026-07" },
   ]);
 
   assert.deepEqual(summary, {
@@ -69,12 +98,8 @@ test("parses a supported Spending document into a non-financial upload summary",
 
 test("identifies an uploaded Spending document that will replace an existing period", () => {
   const summary = summarizeSpendingUpload(parseSpendingUploadDocument(document), [
-    {
-      sourceProducer: "household-spending-generator",
-      sourcePeriodKey: "2026-08",
-    },
+    { sourceProducer: "household-spending-generator", sourcePeriodKey: "2026-08" },
   ]);
-
   assert.equal(summary.replacesExistingPeriod, true);
 });
 
@@ -88,13 +113,7 @@ test("rejects malformed and unsupported upload documents before import", () => {
     () => parseSpendingUploadDocument(JSON.stringify({
       schemaVersion: "spending-import/v1",
       source: { producer: "generator" },
-      period: {
-        sourcePeriodKey: "2026-08",
-        startDate: "2026-08-01",
-        endDate: "2026-08-31",
-        currency: "ZAR",
-        total: "100.00",
-      },
+      period: { sourcePeriodKey: "2026-08", startDate: "2026-08-01", endDate: "2026-08-31", currency: "ZAR", total: "100.00" },
       categories: [],
     })),
     /supported spending-import\/v1/i,
@@ -127,73 +146,67 @@ test("submits the exact uploaded payload to the Spending import endpoint", async
   }]);
 });
 
-const markdownDocument = `# Household Spending Budget
-
-## Reporting period
-- Period: 2026-08
-- Start date: 2026-08-01
-- End date: 2026-08-31
-- Currency: ZAR
-- Total spend: 18,432.75
-
-## Categories
-
-### Groceries
-- Total: 5,634.20
-
-| Date | Description | Amount |
-| --- | --- | ---: |
-| 2026-08-03 | Example Market | 742.50 |
-| 2026-08-21 | Example Foods | 4,892.20 |
-
-### Housing
-- Total: 12,798.55
-`;
-
-test("adapts a completed household Markdown document to the canonical Spending import payload", async () => {
+test("adapts the real household Markdown structure, ignoring summary, excluded, and partial periods", async () => {
   const payload = await parseSpendingMarkdownDocument(markdownDocument);
 
   assert.deepEqual(payload.period, {
-    sourcePeriodKey: "2026-08",
-    startDate: "2026-08-01",
-    endDate: "2026-08-31",
+    sourcePeriodKey: "2026-07-28-to-2026-08-27",
+    startDate: "2026-07-28",
+    endDate: "2026-08-27",
     currency: "ZAR",
-    total: "18432.75",
+    total: "6218.81",
   });
   assert.deepEqual(payload.categories, [
     {
-      sourceCategoryKey: "groceries",
-      name: "Groceries",
-      total: "5634.20",
+      sourceCategoryKey: "bank-charges",
+      name: "Bank Charges",
+      total: "518.81",
       transactions: [
-        {
-          sourceTransactionKey: "groceries-2026-08-03-1",
-          date: "2026-08-03",
-          description: "Example Market",
-          amount: "742.50",
-        },
-        {
-          sourceTransactionKey: "groceries-2026-08-21-2",
-          date: "2026-08-21",
-          description: "Example Foods",
-          amount: "4892.20",
-        },
+        { sourceTransactionKey: "bank-charges-2026-07-30-1", date: "2026-07-30", description: "Service Fees", amount: "0.96" },
+        { sourceTransactionKey: "bank-charges-2026-08-15-2", date: "2026-08-15", description: "Account fee", amount: "517.85" },
       ],
     },
-    { sourceCategoryKey: "housing", name: "Housing", total: "12798.55" },
+    {
+      sourceCategoryKey: "groceries",
+      name: "Groceries",
+      total: "5700.00",
+      transactions: [
+        { sourceTransactionKey: "groceries-2026-08-01-1", date: "2026-08-01", description: "Example Market", amount: "742.50" },
+        { sourceTransactionKey: "groceries-2026-08-21-2", date: "2026-08-21", description: "Example Foods", amount: "4892.20" },
+      ],
+    },
   ]);
   assert.equal(payload.source.producer, "family-hub-household-spending-markdown");
-  assert.equal(payload.source.documentId, "household-spending-2026-08");
+  assert.equal(payload.source.documentId, "household-spending-2026-07-28-to-2026-08-27");
   assert.match(payload.source.revision, /^markdown-[a-f0-9]{64}$/);
-  assert.match(payload.source.issuedAt, /^2026-09-01T00:00:00\.000Z$/);
+  assert.match(payload.source.issuedAt, /^2026-08-28T00:00:00\.000Z$/);
   assert.equal(payload.source.contentSha256, contentSha256For(payload as SpendingImportPayload));
+});
+
+test("fails clearly when the report has more than one completed period", async () => {
+  const secondComplete = markdownDocument.replace("## 28 Aug 2026 - 27 Sep 2026 (PARTIAL)", "## 28 Aug 2026 - 27 Sep 2026");
+  await assert.rejects(() => parseSpendingMarkdownDocument(secondComplete), /more than one completed period/i);
+});
+
+test("rejects a report with no completed period or missing required totals", async () => {
+  await assert.rejects(
+    () => parseSpendingMarkdownDocument(markdownDocument.replace("## 28 Jul 2026 - 27 Aug 2026", "## 28 Jul 2026 - 27 Aug 2026 (PARTIAL)")),
+    /completed .*period/i,
+  );
+  await assert.rejects(
+    () => parseSpendingMarkdownDocument(markdownDocument.replace("TOTAL SPENDING THIS PERIOD = R6,218.81", "Total pending")),
+    /final total/i,
+  );
+  await assert.rejects(
+    () => parseSpendingMarkdownDocument(markdownDocument.replace("**Total Groceries = R5,700.00**", "")),
+    /final total for category/i,
+  );
 });
 
 test("selects Markdown and JSON documents by filename without changing the JSON contract", async () => {
   const markdown = await parseSpendingUploadContent(markdownDocument, "Household Spending Budget.md");
   const json = await parseSpendingUploadContent(document, "spending-import.json");
-
-  assert.equal(markdown.period.sourcePeriodKey, "2026-08");
+  assert.equal(markdown.period.sourcePeriodKey, "2026-07-28-to-2026-08-27");
   assert.deepEqual(json, parseSpendingUploadDocument(document));
   await assert.rejects(
     () => parseSpendingUploadContent(markdownDocument, "Household Spending Budget.txt"),
@@ -204,10 +217,13 @@ test("selects Markdown and JSON documents by filename without changing the JSON 
 test("uses stable source and category identities while recognizing revisions for the same period", async () => {
   const exactRepeat = await parseSpendingMarkdownDocument(markdownDocument);
   const original = await parseSpendingMarkdownDocument(markdownDocument);
-  const revised = await parseSpendingMarkdownDocument(markdownDocument.replace("18,432.75", "18,500.00"));
+  const revised = await parseSpendingMarkdownDocument(markdownDocument.replace("R6,218.81", "R6,200.00"));
   const nextMonth = await parseSpendingMarkdownDocument(markdownDocument
-    .replace("2026-08-31", "2026-09-30")
-    .replaceAll("2026-08", "2026-09"));
+    .replaceAll("28 Jul 2026 - 27 Aug 2026", "28 Aug 2026 - 27 Sep 2026")
+    .replaceAll("30 Jul 2026", "30 Aug 2026")
+    .replaceAll("15 Aug 2026", "15 Sep 2026")
+    .replaceAll("01 Aug 2026", "01 Sep 2026")
+    .replaceAll("21 Aug 2026", "21 Sep 2026"));
 
   assert.equal(exactRepeat.source.contentSha256, original.source.contentSha256);
   assert.equal(exactRepeat.source.revision, original.source.revision);
@@ -216,39 +232,4 @@ test("uses stable source and category identities while recognizing revisions for
   assert.notEqual(revised.source.contentSha256, original.source.contentSha256);
   assert.equal(nextMonth.categories[0].sourceCategoryKey, original.categories[0].sourceCategoryKey);
   assert.notEqual(nextMonth.source.documentId, original.source.documentId);
-});
-
-test("rejects missing, unsupported, and ambiguous household Markdown values instead of guessing", async () => {
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("- Period: 2026-08\n", "")),
-    /missing reporting period/i,
-  );
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("- Total spend: 18,432.75", "")),
-    /missing final total spend/i,
-  );
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace(/## Categories[\s\S]*/, "## Categories\n")),
-    /at least one ### category/i,
-  );
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("- Period: 2026-08", "- Period: 2026-99")),
-    /Reporting period must be a valid calendar month/i,
-  );
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("- Period: 2026-08", "- Period: 2026-08\n- Period: 2026-09")),
-    /ambiguous reporting period/i,
-  );
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("## Categories", "## Categories\n\n## Categories")),
-    /ambiguous .*categories/i,
-  );
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("# Household Spending Budget", "# Household Spending Budget\n# Household Spending Budget")),
-    /ambiguous .*heading/i,
-  );
-  await assert.rejects(
-    () => parseSpendingMarkdownDocument(markdownDocument.replace("# Household Spending Budget", "# Other Report")),
-    /Household Spending Budget heading/i,
-  );
 });
