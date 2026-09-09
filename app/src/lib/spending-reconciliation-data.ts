@@ -15,6 +15,7 @@ import type {
   SpendingReconciliationRepository,
   SpendingReconciliationSummary,
 } from "./spending-reconciliation";
+import { SpendingReconciliationDomainError } from "./spending-reconciliation";
 
 type Period = SpendingReconciliationPayload["periods"][number];
 
@@ -229,6 +230,11 @@ export function createSpendingReconciliationRepository<
             action = "unchanged";
             summary.unchanged.push(period.sourcePeriodKey);
           } else {
+            if (existing?.status === "completed" && period.status === "partial") {
+              throw new SpendingReconciliationDomainError(
+                `Period ${period.sourcePeriodKey} cannot transition from completed to partial`,
+              );
+            }
             if (!existing) {
               action = period.status === "partial" ? "partial-refresh" : "insert";
             } else if (existing.status === "partial" && period.status === "completed") {

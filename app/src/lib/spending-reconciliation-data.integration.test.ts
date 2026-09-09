@@ -146,3 +146,20 @@ test("rolls back a changed-period replacement when a persistence write fails", a
   const stored = await client.query<{ total: string }>("select total from spending_periods where source_period_key = '2026-11'");
   assert.deepEqual(stored.rows, [{ total: "100.00" }]);
 });
+
+test("rejects completed-to-partial regressions without changing finalized history", async () => {
+  const completed = snapshot("5", [period("2026-12", "completed", "100.00")]);
+  assert.equal((await service().reconcile(completed)).success, true);
+
+  const regression = snapshot("6", [period("2026-12", "partial", "120.00")]);
+  assert.deepEqual(await service().reconcile(regression), {
+    success: false,
+    code: "DOMAIN",
+    error: "Period 2026-12 cannot transition from completed to partial",
+  });
+
+  const stored = await client.query<{ status: string; total: string }>(
+    "select status, total from spending_periods where source_period_key = '2026-12'",
+  );
+  assert.deepEqual(stored.rows, [{ status: "completed", total: "100.00" }]);
+});

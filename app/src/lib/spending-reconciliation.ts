@@ -137,9 +137,16 @@ export type SpendingReconciliationRepository = {
   reconcile(payload: SpendingReconciliationPayload): Promise<SpendingReconciliationSummary>;
 };
 
+export class SpendingReconciliationDomainError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SpendingReconciliationDomainError";
+  }
+}
+
 type ReconciliationResult =
   | { success: true; summary: SpendingReconciliationSummary }
-  | { success: false; code: "VALIDATION" | "PERSISTENCE"; error: string };
+  | { success: false; code: "VALIDATION" | "DOMAIN" | "PERSISTENCE"; error: string };
 
 function canonicalize(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -185,7 +192,14 @@ export function createSpendingReconciliationService(
 
       try {
         return { success: true, summary: await repository.reconcile(parsed.data) };
-      } catch {
+      } catch (error) {
+        if (error instanceof SpendingReconciliationDomainError) {
+          return {
+            success: false,
+            code: "DOMAIN",
+            error: error.message,
+          };
+        }
         return {
           success: false,
           code: "PERSISTENCE",
