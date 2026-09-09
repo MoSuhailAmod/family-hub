@@ -72,6 +72,18 @@ const metadata: SpendingImportMetadata = {
   ...august,
   contentSha256: "a".repeat(64),
 };
+const reconciliationHistory = {
+  sourceProducer: august.sourceProducer,
+  sourceDocumentId: august.sourceDocumentId,
+  sourceRevision: august.sourceRevision,
+  sourceIssuedAt: august.sourceIssuedAt,
+  importedAt: august.importedAt,
+  importedBy: "chatgpt",
+  contentSha256: metadata.contentSha256,
+  sourcePeriodKey: august.sourcePeriodKey,
+  action: "insert" as const,
+  reconciledAt: new Date("2026-09-01T08:00:01.000Z"),
+};
 
 function repository(): SpendingRepository {
   return {
@@ -106,6 +118,8 @@ function repository(): SpendingRepository {
         : [],
     listImportMetadata: async (sourceProducer) =>
       sourceProducer === august.sourceProducer ? [metadata] : [],
+    listReconciliationHistory: async (sourceProducer) =>
+      sourceProducer === august.sourceProducer ? [reconciliationHistory] : [],
   };
 }
 
@@ -211,7 +225,11 @@ test("returns category history and import metadata while validating lookup keys"
     [groceries],
   );
   assert.deepEqual(await service.listImportMetadata(august.sourceProducer), [metadata]);
+  assert.deepEqual(await service.listReconciliationHistory(august.sourceProducer), [reconciliationHistory]);
   await assert.rejects(() => service.getPeriod("", august.sourcePeriodKey), {
+    message: "sourceProducer is required",
+  });
+  await assert.rejects(() => service.listReconciliationHistory(""), {
     message: "sourceProducer is required",
   });
 });

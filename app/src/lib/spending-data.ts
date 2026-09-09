@@ -4,6 +4,7 @@ import type {
   SpendingCategory,
   SpendingImportMetadata,
   SpendingPeriod,
+  SpendingReconciliationHistoryEntry,
   SpendingRepository,
   SpendingReportingCategory,
   SpendingReportingGroup,
@@ -56,6 +57,18 @@ type TransactionRow = {
 };
 
 type ImportRow = PeriodRow & { source_content_sha256: string };
+type ReconciliationHistoryRow = {
+  source_producer: string;
+  source_document_id: string;
+  source_revision: string;
+  source_issued_at: Date;
+  imported_at: Date;
+  imported_by: string;
+  source_content_sha256: string;
+  source_period_key: string;
+  action: SpendingReconciliationHistoryEntry["action"];
+  reconciled_at: Date;
+};
 
 function mapPeriod(row: PeriodRow): SpendingPeriod {
   return {
@@ -105,6 +118,21 @@ function mapTransaction(row: TransactionRow): SpendingTransaction {
     description: row.description,
     amount: row.amount,
     lineType: row.line_type,
+  };
+}
+
+function mapReconciliationHistory(row: ReconciliationHistoryRow): SpendingReconciliationHistoryEntry {
+  return {
+    sourceProducer: row.source_producer,
+    sourceDocumentId: row.source_document_id,
+    sourceRevision: row.source_revision,
+    sourceIssuedAt: row.source_issued_at,
+    importedAt: row.imported_at,
+    importedBy: row.imported_by,
+    contentSha256: row.source_content_sha256,
+    sourcePeriodKey: row.source_period_key,
+    action: row.action,
+    reconciledAt: row.reconciled_at,
   };
 }
 
@@ -292,5 +320,19 @@ export const spendingRepository: SpendingRepository = {
       ...mapPeriod(row),
       contentSha256: row.source_content_sha256,
     }));
+  },
+
+  async listReconciliationHistory(sourceProducer) {
+    const result = await pool.query<ReconciliationHistoryRow>(
+      `SELECT log.source_producer, i.source_document_id, i.source_revision, i.source_issued_at,
+              i.imported_at, i.imported_by, i.source_content_sha256, log.source_period_key,
+              log.action, log.created_at AS reconciled_at
+       FROM spending_reconciliation_log log
+       INNER JOIN spending_imports i ON i.id = log.import_id
+       WHERE $1::text IS NULL OR log.source_producer = $1
+       ORDER BY log.created_at DESC, i.imported_at DESC, log.source_producer, log.source_period_key`,
+      [sourceProducer ?? null],
+    );
+    return result.rows.map(mapReconciliationHistory);
   },
 };

@@ -127,6 +127,12 @@ On a successful request, Family Hub returns:
 
 ChatGPT should summarize this result in user-facing language: processed count; unchanged periods; historical corrections (`updated`); new completed periods (`inserted`); and current partial periods (`partialRefreshed` or `completedFromPartial`). If the service returns `success: false`, preserve its safe error code/message and do not claim the import completed.
 
+## Reconciliation audit history
+
+For operational troubleshooting, `spending_list_reconciliation_history` exposes one safe audit entry per reconciled period. It can be filtered with an optional `sourceProducer` and returns the source producer/document/revision, issued/imported/reconciled timestamps, importing actor, content SHA-256, logical period key, and reconciliation action. It deliberately does not return raw Markdown, category data, transactions, or transaction descriptions.
+
+Use this read-only MCP tool to confirm the latest successful agent reconciliation and review per-period outcomes. `spending_list_imports` remains available for import provenance; reconciliation history adds the persisted action for each period.
+
 ## Sanitized workflow fixtures
 
 `fixtures/spending-cumulative-workflow/` provides representative, non-private snapshots:

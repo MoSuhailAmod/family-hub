@@ -42,6 +42,7 @@ function service(overrides: Partial<SpendingService> = {}): SpendingService {
     listRecentTransactions: async () => ({ transactionCount: 0, transactions: [] }),
     listCategoryHistory: async () => [category],
     listImportMetadata: async () => [],
+    listReconciliationHistory: async () => [],
     ...overrides,
   };
 }

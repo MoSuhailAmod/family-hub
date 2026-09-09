@@ -50,6 +50,20 @@ export type SpendingImportMetadata = SpendingPeriod & {
   contentSha256: string;
 };
 
+/** Safe reconciliation audit metadata; raw household source content is never retained or returned. */
+export type SpendingReconciliationHistoryEntry = {
+  sourceProducer: string;
+  sourceDocumentId: string;
+  sourceRevision: string;
+  sourceIssuedAt: Date;
+  importedAt: Date;
+  importedBy: string;
+  contentSha256: string;
+  sourcePeriodKey: string;
+  action: "insert" | "update" | "unchanged" | "partial-refresh" | "completed-from-partial";
+  reconciledAt: Date;
+};
+
 export type SpendingRepository = {
   listPeriods: () => Promise<SpendingPeriod[]>;
   getLatestPeriod: (sourceProducer?: string) => Promise<SpendingPeriod | null>;
@@ -86,6 +100,7 @@ export type SpendingRepository = {
     sourceCategoryKey: string,
   ) => Promise<SpendingCategory[]>;
   listImportMetadata: (sourceProducer?: string) => Promise<SpendingImportMetadata[]>;
+  listReconciliationHistory: (sourceProducer?: string) => Promise<SpendingReconciliationHistoryEntry[]>;
 };
 
 export class SpendingValidationError extends Error {}
@@ -201,6 +216,12 @@ export function createSpendingService(repository: SpendingRepository) {
 
     async listImportMetadata(sourceProducer?: string) {
       return repository.listImportMetadata(
+        sourceProducer === undefined ? undefined : requiredKey(sourceProducer, "sourceProducer"),
+      );
+    },
+
+    async listReconciliationHistory(sourceProducer?: string) {
+      return repository.listReconciliationHistory(
         sourceProducer === undefined ? undefined : requiredKey(sourceProducer, "sourceProducer"),
       );
     },
