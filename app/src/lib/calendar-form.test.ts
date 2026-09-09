@@ -33,6 +33,7 @@ test("creates timed event timestamps in Africa/Johannesburg", () => {
     location: "School",
     description: "Collect Mia",
     recurrenceRule: null,
+    reminderOffsets: [],
   });
 });
 
@@ -80,6 +81,7 @@ test("prefills all-day edits with Johannesburg dates and an inclusive end", () =
       location: "Home",
       description: "Braai",
       recurrenceRule: "FREQ=YEARLY",
+      reminderOffsets: [],
     },
   );
 });
@@ -103,4 +105,41 @@ test("rejects end date/times that are not after the start", () => {
     field: "end",
     message: "End date/time must be after start date/time.",
   });
+});
+
+test("includes selected reminder presets in create and edit payloads", () => {
+  const result = createEventPayload({
+    title: "Family holiday",
+    startDate: "2026-09-01",
+    startTime: "10:30",
+    endDate: "2026-09-01",
+    endTime: "11:15",
+    allDay: false,
+    participantIds: [],
+    categoryId: null,
+    location: "",
+    description: "",
+    reminderOffsets: [10080, 1440],
+  });
+
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.deepEqual(result.data.reminderOffsets, [10080, 1440]);
+});
+
+test("prefills reminder selections from a persisted event", () => {
+  const form = eventFormValuesFromPersistedEvent({
+    title: "Dentist",
+    startAt: "2026-09-01T08:30:00.000Z",
+    endAt: "2026-09-01T09:15:00.000Z",
+    allDay: false,
+    participants: [],
+    categoryId: null,
+    location: null,
+    description: null,
+    recurrenceRule: "FREQ=WEEKLY",
+    reminderOffsets: [10080, 60],
+  });
+
+  assert.deepEqual(form.reminderOffsets, [10080, 60]);
 });

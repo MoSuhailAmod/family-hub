@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createEventPayload } from "@/lib/calendar-form";
+import { reminderPresetOptions } from "@/lib/calendar-reminders";
 import type { EventCategory, FamilyMember } from "@/lib/calendar-types";
 
 type Props = {
@@ -23,6 +24,7 @@ type FormState = {
   categoryId: string | null;
   location: string;
   description: string;
+  reminderOffsets: number[];
 };
 
 function johannesburgDateTime() {
@@ -58,6 +60,7 @@ function initialForm(): FormState {
     categoryId: null,
     location: "",
     description: "",
+    reminderOffsets: [],
   };
 }
 
@@ -100,6 +103,15 @@ export default function CreateEventModal({
       selectedMembers.has(memberId)
         ? form.participantIds.filter((id) => id !== memberId)
         : [...form.participantIds, memberId],
+    );
+  }
+
+  function toggleReminder(offsetMinutes: number) {
+    update(
+      "reminderOffsets",
+      form.reminderOffsets.includes(offsetMinutes)
+        ? form.reminderOffsets.filter((offset) => offset !== offsetMinutes)
+        : [...form.reminderOffsets, offsetMinutes],
     );
   }
 
@@ -213,6 +225,13 @@ export default function CreateEventModal({
             <legend>Family members</legend>
             <div className="participant-options">
               {members.map((member) => <label key={member.id} className="participant-option"><input type="checkbox" checked={selectedMembers.has(member.id)} onChange={() => toggleParticipant(member.id)} /><span style={{ background: member.color }} className="member-color-dot" />{member.name}</label>)}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Reminders</legend>
+            <div className="reminder-options">
+              {reminderPresetOptions.map((reminder) => <label key={reminder.offsetMinutes} className="reminder-option"><input type="checkbox" checked={form.reminderOffsets.includes(reminder.offsetMinutes)} onChange={() => toggleReminder(reminder.offsetMinutes)} />{reminder.label}</label>)}
             </div>
           </fieldset>
 

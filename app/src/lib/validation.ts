@@ -1,6 +1,8 @@
 import { RRule } from "rrule";
 import { z } from "zod";
 
+import { approvedReminderOffsets } from "@/lib/calendar-reminders";
+
 const uuid = z.string().uuid();
 
 const nullableText = (max: number) =>
@@ -20,7 +22,7 @@ const isoDateString = z.string().refine(
   "Must be a valid ISO date/time",
 );
 
-export const approvedReminderOffsets = [10, 30, 60, 1440, 10080] as const;
+export { approvedReminderOffsets } from "@/lib/calendar-reminders";
 
 const reminderOffsetSchema = z.union(
   approvedReminderOffsets.map((offset) => z.literal(offset)) as [

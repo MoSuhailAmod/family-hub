@@ -1292,11 +1292,13 @@ a {
   font-weight: 700;
 }
 
-.event-details-recurrence {
+.event-details-recurrence,
+.event-details-reminders {
   margin: 0;
   color: var(--text);
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.45;
 }
 
 .event-details-description {
@@ -1421,10 +1423,18 @@ a {
   margin-bottom: 8px;
 }
 
-.participant-options {
+.participant-options,
+.reminder-options {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
+}
+
+.reminder-option {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500 !important;
 }
 
 .participant-option {
