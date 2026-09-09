@@ -19,6 +19,19 @@ services:
       retries: 5
       start_period: 10s
 
+  migrate:
+    build:
+      context: ./app
+    container_name: family-hub-migrate
+    restart: "no"
+    command: npm run db:migrate
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   app:
     build:
       context: ./app
@@ -34,8 +47,23 @@ services:
       GOOGLE_FAMILY_CALENDAR_ICS_URL: "${GOOGLE_FAMILY_CALENDAR_ICS_URL}"
 
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  notification-worker:
+    build:
+      context: ./app
+    container_name: family-hub-notification-worker
+    restart: unless-stopped
+    command: npm run notifications:worker
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+      HOME_ASSISTANT_URL: "${HOME_ASSISTANT_URL}"
+      HOME_ASSISTANT_TOKEN: "${HOME_ASSISTANT_TOKEN}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:
