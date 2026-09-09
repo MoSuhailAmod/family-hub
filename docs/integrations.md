@@ -4,7 +4,7 @@ Family Hub core owns household data and business validation. Integrations are ad
 
 ## Current implementation
 
-- **MCP:** `/mcp` hosts a Family Hub MCP server with calendar tools. The tools call the shared calendar service layer. Its transport/authentication posture must be treated according to [Security](security.md); adapter existence is not proof of safe public exposure.
+- **MCP:** `/mcp` hosts a Family Hub MCP server with calendar and narrow Spending reconciliation/review tools. The tools call the shared service layers. Its transport/authentication posture must be treated according to [Security](security.md); adapter existence is not proof of safe public exposure.
 - **Google Calendar:** `GET /api/events` can read optional configured Google Calendar ICS events and append them to the requested calendar range. It is an optional read-side integration, not a required intermediary or the canonical record for Family Hub events.
 - **Home Assistant:** the notification worker has a Home Assistant transport configuration and is an edge delivery concern. It should use least-privilege credentials and must not move calendar business rules into Home Assistant.
 

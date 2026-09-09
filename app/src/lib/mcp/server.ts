@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
 
+import { spendingReconciliationService, spendingService } from "@/lib/spending";
+import type { SpendingReconciliationService } from "@/lib/spending-reconciliation-route-handlers";
+import type { SpendingService } from "@/lib/spending-route-handlers";
 import {
   getCalendarEventService,
   createCalendarEventService,
@@ -11,7 +14,16 @@ import {
   listCalendarEventsService,
 } from "@/lib/calendar-service";
 
-export function createFamilyHubMcpServer() {
+type SpendingMcpDependencies = {
+  spendingService?: Pick<SpendingService, "listPeriods" | "getPeriod" | "listImportMetadata">;
+  spendingReconciliationService?: SpendingReconciliationService;
+};
+
+export function createFamilyHubMcpServerWithDependencies(
+  dependencies: SpendingMcpDependencies = {},
+) {
+  const spendingReads = dependencies.spendingService ?? spendingService;
+  const reconciliation = dependencies.spendingReconciliationService ?? spendingReconciliationService;
   const server = new McpServer({
     name: "family-hub",
     version: "0.1.0",
@@ -230,5 +242,95 @@ export function createFamilyHubMcpServer() {
     },
   );
 
+  server.registerTool(
+    "spending_list_periods",
+    {
+      description: "List current and historical Spending periods for agent reconciliation review.",
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => {
+      try {
+        const periods = await spendingReads.listPeriods();
+        return { content: [{ type: "text", text: JSON.stringify({ success: true, data: periods }) }] };
+      } catch {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, code: "READ_FAILED", error: "Unable to list Spending periods" }) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "spending_get_period",
+    {
+      description: "Get one Spending period and its import status by producer and source period key.",
+      inputSchema: z.object({
+        sourceProducer: z.string().min(1),
+        sourcePeriodKey: z.string().min(1),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ sourceProducer, sourcePeriodKey }) => {
+      try {
+        const period = await spendingReads.getPeriod(sourceProducer, sourcePeriodKey);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(period
+              ? { success: true, data: period }
+              : { success: false, code: "NOT_FOUND", error: "Spending period not found" }),
+          }],
+          isError: !period,
+        };
+      } catch {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, code: "READ_FAILED", error: "Unable to load Spending period" }) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "spending_list_imports",
+    {
+      description: "List Spending import metadata and reconciliation provenance without transaction details.",
+      inputSchema: z.object({ sourceProducer: z.string().min(1).optional() }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ sourceProducer }) => {
+      try {
+        const imports = await spendingReads.listImportMetadata(sourceProducer);
+        return { content: [{ type: "text", text: JSON.stringify({ success: true, data: imports }) }] };
+      } catch {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, code: "READ_FAILED", error: "Unable to list Spending imports" }) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "spending_reconcile_snapshot",
+    {
+      description: "Validate and reconcile a structured cumulative Spending snapshot through Family Hub's shared service.",
+      inputSchema: z.object({ snapshot: z.unknown() }),
+      annotations: { destructiveHint: true, openWorldHint: false },
+    },
+    async ({ snapshot }) => {
+      const result = await reconciliation.reconcile(snapshot);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
+        isError: !result.success,
+      };
+    },
+  );
+
   return server;
+}
+
+export function createFamilyHubMcpServer() {
+  return createFamilyHubMcpServerWithDependencies();
 }
