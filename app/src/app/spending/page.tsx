@@ -13,8 +13,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   calculatePeriodComparison,
   loadSpendingCategoryTransactions,
+  loadSpendingDashboard,
   loadSpendingHistory,
-  loadSpendingOverview,
   sortSpendingTransactions,
   type SpendingCategory,
   type SpendingHistoryEntry,
@@ -64,6 +64,9 @@ export default function SpendingPage() {
   const [periods, setPeriods] = useState<SpendingPeriod[]>([]);
   const [period, setPeriod] = useState<SpendingPeriod | null>(null);
   const [categories, setCategories] = useState<SpendingCategory[]>([]);
+  const [transactionCount, setTransactionCount] = useState(0);
+  const [recentTransactions, setRecentTransactions] = useState<SpendingTransaction[]>([]);
+  const [partialPeriod, setPartialPeriod] = useState<SpendingPeriod | null>(null);
   const [history, setHistory] = useState<SpendingHistoryEntry[]>([]);
   const [historyView, setHistoryView] = useState<SpendingHistoryView>("raw");
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -87,11 +90,14 @@ export default function SpendingPage() {
     setLoading(true);
     setSelectedCategory(null);
     try {
-      const overview = await loadSpendingOverview(fetch, selectedPeriod);
+      const dashboard = await loadSpendingDashboard(fetch, selectedPeriod);
       if (overviewRequestId.current !== requestId) return;
-      setPeriods(overview.periods);
-      setPeriod(overview.period);
-      setCategories(overview.categories);
+      setPeriods(dashboard.periods);
+      setPeriod(dashboard.period);
+      setCategories(dashboard.categories);
+      setTransactionCount(dashboard.transactionCount);
+      setRecentTransactions(dashboard.recentTransactions);
+      setPartialPeriod(dashboard.partialPeriod);
       setLoadFailed(false);
     } catch (error) {
       console.error(error);
@@ -177,6 +183,8 @@ export default function SpendingPage() {
       ),
     }))
     .filter((entry): entry is { period: SpendingPeriod; category: SpendingHistoryEntry["categories"][number] } => Boolean(entry.category));
+  const topCategories = [...categories].sort((left, right) => Number(right.total) - Number(left.total)).slice(0, 5);
+  const largestCategoryTotal = Math.max(0, ...topCategories.map((category) => Number(category.total)));
 
   return (
     <div className="page spending-page">
@@ -314,12 +322,26 @@ export default function SpendingPage() {
             <div>
               <p className="section-label">Total spending</p>
               <h2 id="spending-total-heading">{amount(period.currency, period.total)}</h2>
-              <p className="spending-period-dates">{periodLabel(period)}</p>
+              <p className="spending-period-dates">{periodLabel(period)} · <strong>{period.status === "partial" ? "Partial / in progress" : "Completed"}</strong></p>
+              {period.importedAt && <p className="spending-freshness">Last synced {new Date(period.importedAt).toLocaleDateString()} via agent import</p>}
             </div>
             <div className="spending-summary-icon" aria-hidden="true">
               <ReceiptText size={25} />
             </div>
           </section>
+
+          <section className="spending-metrics" aria-label="Period summary">
+            <div><span>Categories</span><strong>{categories.length}</strong></div>
+            <div><span>Transactions</span><strong>{transactionCount}</strong></div>
+            <div><span>Compared with prior period</span><strong className={comparison?.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{comparison ? signedAmount(period.currency, comparison.absoluteChange) : "—"}</strong></div>
+          </section>
+
+          {partialPeriod && periodId(partialPeriod) !== periodId(period) && (
+            <button type="button" className="spending-partial-banner" onClick={() => void load(partialPeriod)}>
+              <span><strong>Current period available</strong><small>{periodLabel(partialPeriod)} · Partial / in progress</small></span>
+              <span>View current spending →</span>
+            </button>
+          )}
 
           <section className="spending-history" aria-labelledby="spending-history-heading">
             <div className="spending-section-heading">
@@ -414,7 +436,7 @@ export default function SpendingPage() {
                 )}
               </div>
             )}
-            <p className="spending-history-note">Every stored spending period currently represents a completed period.</p>
+            <p className="spending-history-note">History compares stored completed periods; current partial periods are labeled as in progress.</p>
           </section>
 
           <section className="spending-categories" aria-labelledby="spending-categories-heading">
@@ -428,7 +450,11 @@ export default function SpendingPage() {
             {categories.length === 0 ? (
               <p className="spending-no-categories">No category totals were provided for this period.</p>
             ) : (
-              <ul className="spending-category-grid">
+              <>
+                <ol className="spending-category-chart" aria-label="Top spending categories">
+                  {topCategories.map((category) => <li key={category.sourceCategoryKey}><span>{category.name}</span><div aria-hidden="true"><i style={{ width: `${largestCategoryTotal ? Math.max(4, (Number(category.total) / largestCategoryTotal) * 100) : 0}%` }} /></div><strong>{amount(period.currency, category.total)}</strong></li>)}
+                </ol>
+                <ul className="spending-category-grid">
                 {categories.map((category) => (
                   <li key={category.sourceCategoryKey}>
                     <button
@@ -441,7 +467,15 @@ export default function SpendingPage() {
                     </button>
                   </li>
                 ))}
-              </ul>
+                </ul>
+              </>
+            )}
+          </section>
+
+          <section className="spending-recent" aria-labelledby="spending-recent-heading">
+            <div className="spending-section-heading"><div><p className="section-label">Recent activity</p><h2 id="spending-recent-heading">Recent transactions</h2></div></div>
+            {recentTransactions.length === 0 ? <p className="spending-no-categories">No dated transactions were provided for this period.</p> : (
+              <ul>{recentTransactions.map((transaction) => <li key={transaction.sourceTransactionKey}><span><strong>{transaction.description}</strong><small>{transaction.date}</small></span><strong>{amount(period.currency, transaction.amount)}</strong></li>)}</ul>
             )}
           </section>
         </>

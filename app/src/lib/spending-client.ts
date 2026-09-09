@@ -5,6 +5,8 @@ export type SpendingPeriod = {
   endDate: string;
   currency: string;
   total: string;
+  status?: "partial" | "completed";
+  importedAt?: string;
 };
 
 export type SpendingCategory = {
@@ -46,6 +48,12 @@ export type SpendingOverview = {
   period: SpendingPeriod | null;
   periods: SpendingPeriod[];
   categories: SpendingCategory[];
+};
+
+export type SpendingDashboard = SpendingOverview & {
+  transactionCount: number;
+  recentTransactions: SpendingTransaction[];
+  partialPeriod: SpendingPeriod | null;
 };
 
 async function requestJson<T>(fetcher: typeof fetch, url: string): Promise<T> {
@@ -190,6 +198,36 @@ export function sortSpendingTransactions(
     const dateDifference = a.date.localeCompare(b.date) || a.sourceTransactionKey.localeCompare(b.sourceTransactionKey);
     return sort === "date-desc" ? -dateDifference : dateDifference;
   });
+}
+
+export async function loadSpendingDashboard(
+  fetcher: typeof fetch,
+  selectedPeriod?: SpendingPeriod,
+): Promise<SpendingDashboard> {
+  const overview = await loadSpendingOverview(fetcher, selectedPeriod);
+  if (!overview.period) {
+    return {
+      ...overview,
+      transactionCount: 0,
+      recentTransactions: [],
+      partialPeriod: null,
+    };
+  }
+  const { transactionCount = 0, transactions: recentTransactions = [] } = await requestJson<{
+    transactionCount?: number;
+    transactions?: SpendingTransaction[];
+  }>(
+    fetcher,
+    `/api/spending/periods/${encodeURIComponent(overview.period.sourcePeriodKey)}/transactions?sourceProducer=${encodeURIComponent(overview.period.sourceProducer)}`,
+  );
+  return {
+    ...overview,
+    transactionCount,
+    recentTransactions,
+    partialPeriod: overview.periods.find((period) =>
+      period.status === "partial" && period.sourceProducer === overview.period?.sourceProducer,
+    ) ?? null,
+  };
 }
 
 export async function loadSpendingOverview(

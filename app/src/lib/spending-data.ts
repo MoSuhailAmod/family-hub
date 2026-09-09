@@ -21,6 +21,7 @@ type PeriodRow = {
   source_revision: string;
   source_issued_at: Date;
   imported_at: Date;
+  status: "partial" | "completed";
 };
 
 type CategoryRow = {
@@ -67,6 +68,7 @@ function mapPeriod(row: PeriodRow): SpendingPeriod {
     sourceRevision: row.source_revision,
     sourceIssuedAt: row.source_issued_at,
     importedAt: row.imported_at,
+    status: row.status,
   };
 }
 
@@ -105,7 +107,7 @@ function mapTransaction(row: TransactionRow): SpendingTransaction {
 }
 
 const periodFields = `
-  p.source_producer, p.source_period_key, p.start_date, p.end_date, p.currency, p.total,
+  p.source_producer, p.source_period_key, p.start_date, p.end_date, p.currency, p.total, p.status,
   i.source_document_id, i.source_revision, i.source_issued_at, i.imported_at`;
 const periodJoin = `
   FROM spending_periods p
@@ -123,7 +125,7 @@ export const spendingRepository: SpendingRepository = {
   async getLatestPeriod(sourceProducer) {
     const result = await pool.query<PeriodRow>(
       `SELECT ${periodFields} ${periodJoin}
-       WHERE $1::text IS NULL OR p.source_producer = $1
+       WHERE ($1::text IS NULL OR p.source_producer = $1) AND p.status = 'completed'
        ORDER BY p.end_date DESC, p.start_date DESC, p.source_producer, p.source_period_key
        LIMIT 1`,
       [sourceProducer ?? null],
@@ -236,6 +238,31 @@ export const spendingRepository: SpendingRepository = {
       [sourceProducer, sourcePeriodKey, sourceCategoryKey],
     );
     return result.rows.map(mapTransaction);
+  },
+
+  async listRecentTransactions(sourceProducer, sourcePeriodKey) {
+    const [countResult, transactionsResult] = await Promise.all([
+      pool.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+         FROM spending_transactions t
+         INNER JOIN spending_periods p ON p.id = t.period_id
+         WHERE p.source_producer = $1 AND p.source_period_key = $2 AND t.line_type = 'transaction'`,
+        [sourceProducer, sourcePeriodKey],
+      ),
+      pool.query<TransactionRow>(
+        `SELECT p.source_producer, p.source_period_key, c.source_category_key,
+                t.source_transaction_key, t.source_transaction_date AS date, t.description, t.amount
+         FROM spending_transactions t
+         INNER JOIN spending_periods p ON p.id = t.period_id
+         INNER JOIN spending_period_categories pc ON pc.id = t.period_category_id
+         INNER JOIN spending_categories c ON c.id = pc.category_id
+         WHERE p.source_producer = $1 AND p.source_period_key = $2 AND t.line_type = 'transaction'
+         ORDER BY t.source_transaction_date DESC, t.source_transaction_key DESC
+         LIMIT 5`,
+        [sourceProducer, sourcePeriodKey],
+      ),
+    ]);
+    return { transactionCount: Number(countResult.rows[0]?.count ?? 0), transactions: transactionsResult.rows.map(mapTransaction) };
   },
 
   async listCategoryHistory(sourceProducer, sourceCategoryKey) {

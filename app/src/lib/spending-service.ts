@@ -9,6 +9,7 @@ export type SpendingPeriod = {
   sourceRevision: string;
   sourceIssuedAt: Date;
   importedAt: Date;
+  status: "partial" | "completed";
 };
 
 export type SpendingCategory = {
@@ -75,6 +76,10 @@ export type SpendingRepository = {
     sourcePeriodKey: string,
     sourceCategoryKey: string,
   ) => Promise<SpendingTransaction[]>;
+  listRecentTransactions: (
+    sourceProducer: string,
+    sourcePeriodKey: string,
+  ) => Promise<{ transactionCount: number; transactions: SpendingTransaction[] }>;
   listCategoryHistory: (
     sourceProducer: string,
     sourceCategoryKey: string,
@@ -176,6 +181,13 @@ export function createSpendingService(repository: SpendingRepository) {
         requiredKey(sourceProducer, "sourceProducer"),
         requiredKey(sourcePeriodKey, "sourcePeriodKey"),
         requiredKey(sourceCategoryKey, "sourceCategoryKey"),
+      );
+    },
+
+    async listRecentTransactions(sourceProducer: string, sourcePeriodKey: string) {
+      return repository.listRecentTransactions(
+        requiredKey(sourceProducer, "sourceProducer"),
+        requiredKey(sourcePeriodKey, "sourcePeriodKey"),
       );
     },
 
