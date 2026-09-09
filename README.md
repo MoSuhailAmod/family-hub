@@ -42,4 +42,4 @@ Development is currently focused on making the calendar fully interactive, inclu
 - Recurrence controls
 - Improved event details and interaction
 
-Detailed technical, infrastructure, database, and development documentation will be maintained separately.
+Detailed technical, infrastructure, database, and development documentation is maintained in the [technical documentation index](docs/README.md).
