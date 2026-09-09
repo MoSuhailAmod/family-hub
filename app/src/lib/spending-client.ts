@@ -37,12 +37,14 @@ export type SpendingPeriodComparison = {
 
 export type SpendingTransaction = {
   sourceTransactionKey: string;
-  date: string;
+  date: string | null;
   description: string;
   amount: string;
+  lineType?: "transaction" | "assumption" | "adjustment";
 };
 
 export type SpendingTransactionSort = "date" | "date-desc" | "amount-desc" | "amount";
+export type SpendingTransactionLineType = "all" | "transaction" | "assumption" | "adjustment";
 
 export type SpendingOverview = {
   period: SpendingPeriod | null;
@@ -195,9 +197,22 @@ export function sortSpendingTransactions(
       return sort === "amount-desc" ? -amountDifference : amountDifference;
     }
 
-    const dateDifference = a.date.localeCompare(b.date) || a.sourceTransactionKey.localeCompare(b.sourceTransactionKey);
+    if (Boolean(a.date) !== Boolean(b.date)) return a.date ? -1 : 1;
+    const dateDifference = (a.date ?? "").localeCompare(b.date ?? "") || a.sourceTransactionKey.localeCompare(b.sourceTransactionKey);
     return sort === "date-desc" ? -dateDifference : dateDifference;
   });
+}
+
+export function filterSpendingTransactions(
+  transactions: SpendingTransaction[],
+  query: string,
+  lineType: SpendingTransactionLineType,
+): SpendingTransaction[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  return transactions.filter((transaction) =>
+    (lineType === "all" || (transaction.lineType ?? "transaction") === lineType) &&
+    (!normalizedQuery || transaction.description.toLocaleLowerCase().includes(normalizedQuery)),
+  );
 }
 
 export async function loadSpendingDashboard(

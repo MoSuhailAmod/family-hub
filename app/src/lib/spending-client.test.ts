@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   calculatePeriodComparison,
+  filterSpendingTransactions,
   loadSpendingDashboard,
   loadSpendingHistory,
   loadSpendingOverview,
@@ -250,6 +251,36 @@ test("loads every source transaction for a selected category without changing im
   ]);
 });
 
+test("filters persisted source lines by description and preserves their source line type", () => {
+  const transactions = [
+    {
+      sourceTransactionKey: "grocery-1",
+      date: "2026-02-03",
+      description: "Example Market",
+      amount: "-250.00",
+      lineType: "transaction" as const,
+    },
+    {
+      sourceTransactionKey: "maintenance-adjustment",
+      date: null,
+      description: "Monthly maintenance adjustment",
+      amount: "25.00",
+      lineType: "adjustment" as const,
+    },
+    {
+      sourceTransactionKey: "budget-assumption",
+      date: null,
+      description: "Budget allocation assumption",
+      amount: "0.00",
+      lineType: "assumption" as const,
+    },
+  ];
+
+  assert.deepEqual(filterSpendingTransactions(transactions, "maintenance", "all"), [transactions[1]]);
+  assert.deepEqual(filterSpendingTransactions(transactions, "", "transaction"), [transactions[0]]);
+  assert.deepEqual(filterSpendingTransactions(transactions, "", "assumption"), [transactions[2]]);
+});
+
 test("sorts transaction rows by their source date by default and supports amount sorting", async () => {
   const { sortSpendingTransactions } = await import("./spending-client");
   const transactions = [
@@ -265,6 +296,17 @@ test("sorts transaction rows by their source date by default and supports amount
     sortSpendingTransactions(transactions, "amount-desc"),
     [transactions[1], transactions[0]],
   );
+});
+
+test("keeps undated assumptions and adjustments after dated transactions when sorting by date", async () => {
+  const { sortSpendingTransactions } = await import("./spending-client");
+  const transactions = [
+    { sourceTransactionKey: "undated", date: null, description: "Assumption", amount: "0.00", lineType: "assumption" as const },
+    { sourceTransactionKey: "dated", date: "2026-02-03", description: "Market", amount: "20.00", lineType: "transaction" as const },
+  ];
+
+  assert.deepEqual(sortSpendingTransactions(transactions, "date"), [transactions[1], transactions[0]]);
+  assert.deepEqual(sortSpendingTransactions(transactions, "date-desc"), [transactions[1], transactions[0]]);
 });
 
 test("sorts arbitrary-precision imported decimal amounts without rounding them", async () => {

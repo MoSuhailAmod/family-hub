@@ -1987,7 +1987,8 @@ a {
 }
 
 .spending-back-button,
-.spending-transaction-sort select {
+.spending-transaction-controls input,
+.spending-transaction-controls select {
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface);
@@ -2052,10 +2053,11 @@ a {
   gap: 7px;
 }
 
-.spending-transaction-sort {
+.spending-transaction-controls {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 12px;
   color: var(--text-muted);
@@ -2063,7 +2065,13 @@ a {
   font-weight: 700;
 }
 
-.spending-transaction-sort select {
+.spending-transaction-controls label {
+  display: grid;
+  gap: 5px;
+}
+
+.spending-transaction-controls input,
+.spending-transaction-controls select {
   padding: 8px 10px;
   cursor: pointer;
 }
@@ -2153,7 +2161,7 @@ a {
     margin: 18px 0;
   }
 
-  .spending-transaction-sort {
+  .spending-transaction-controls {
     align-items: start;
     flex-direction: column;
   }
