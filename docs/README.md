@@ -11,6 +11,7 @@ This is the implementation-level source of truth for Family Hub. The [root READM
 - [APIs and services](api-and-services.md) — HTTP/MCP adapters and calendar contracts.
 - [Spending ingestion (superseded)](spending-imports.md) — records retirement of the legacy in-page upload workflow and links to the approved V2 replacement.
 - [ADR-001: Spending V2 agent ingestion](adr/ADR-001-spending-v2-agent-ingestion.md) — approved architecture for ChatGPT-led cumulative ingestion, reconciliation, database persistence, and presentation-only Spending UI.
+- [Spending cumulative snapshot contract v1](spending-cumulative-snapshot-contract.md) — versioned ChatGPT-facing contract, identity/lifecycle rules, reconciliation reporting, and sanitized workflow fixtures.
 - [Spending V2 design reference](design/spending-v2/README.md) — approved data flow, user flow, database direction, and dashboard mockup.
 - [Security](security.md) — current trust model and future authenticated integration boundary.
 - [Backups and recovery](backups-and-recovery.md) — backup, restore, and migration recovery discipline.

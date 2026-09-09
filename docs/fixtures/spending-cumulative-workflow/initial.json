@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "spending-reconciliation/v1",
+  "source": {
+    "producer": "chatgpt-household-spending",
+    "documentId": "sanitized-household-spending-budget",
+    "revision": "1",
+    "issuedAt": "2026-08-28T08:00:00Z",
+    "importedBy": "chatgpt",
+    "contentSha256": "121cb22b82e232aa95892906a5ce99beb7cb29923d24f6d4280f605ef92a28a5"
+  },
+  "periods": [
+    {
+      "sourcePeriodKey": "2026-05-28-to-2026-06-27",
+      "startDate": "2026-05-28",
+      "endDate": "2026-06-27",
+      "currency": "ZAR",
+      "total": "1250.00",
+      "status": "completed",
+      "categories": [
+        {
+          "sourceCategoryKey": "groceries",
+          "name": "Groceries",
+          "total": "500.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "2026-06-03-example-market",
+              "lineType": "transaction",
+              "date": "2026-06-03",
+              "description": "Example Market",
+              "amount": "500.00"
+            }
+          ]
+        },
+        {
+          "sourceCategoryKey": "utilities",
+          "name": "Utilities",
+          "total": "750.00"
+        }
+      ]
+    },
+    {
+      "sourcePeriodKey": "2026-06-28-to-2026-07-27",
+      "startDate": "2026-06-28",
+      "endDate": "2026-07-27",
+      "currency": "ZAR",
+      "total": "1400.00",
+      "status": "completed",
+      "categories": [
+        {
+          "sourceCategoryKey": "groceries",
+          "name": "Groceries",
+          "total": "650.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "2026-07-05-example-market",
+              "lineType": "transaction",
+              "date": "2026-07-05",
+              "description": "Example Market",
+              "amount": "650.00"
+            }
+          ]
+        },
+        {
+          "sourceCategoryKey": "household",
+          "name": "Household supplies",
+          "total": "750.00"
+        }
+      ]
+    },
+    {
+      "sourcePeriodKey": "2026-07-28-to-2026-08-27",
+      "startDate": "2026-07-28",
+      "endDate": "2026-08-27",
+      "currency": "ZAR",
+      "total": "640.00",
+      "status": "partial",
+      "categories": [
+        {
+          "sourceCategoryKey": "groceries",
+          "name": "Groceries",
+          "total": "480.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "2026-08-11-example-market",
+              "lineType": "transaction",
+              "date": "2026-08-11",
+              "description": "Example Market",
+              "amount": "480.00"
+            }
+          ]
+        },
+        {
+          "sourceCategoryKey": "home-maintenance",
+          "name": "Home maintenance",
+          "total": "160.00",
+          "lines": [
+            {
+              "sourceTransactionKey": "opening-maintenance-provision",
+              "lineType": "assumption",
+              "description": "Sanitized opening maintenance provision",
+              "amount": "160.00"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
