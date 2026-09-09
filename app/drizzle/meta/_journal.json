@@ -50,6 +50,27 @@
       "when": 1788905509202,
       "tag": "0006_salty_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788970350132,
+      "tag": "0007_spending-v2-reconciliation-persistence",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788971198729,
+      "tag": "0008_spending-v2-reconciliation-integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788971493544,
+      "tag": "0009_spending-v2-audit-history",
+      "breakpoints": true
     }
   ]
 }

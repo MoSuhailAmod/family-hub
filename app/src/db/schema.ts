@@ -327,21 +327,16 @@ export const notificationDeliveries = pgTable(
   ],
 );
 
-// Immutable source-document-to-period identity. One producer document cannot describe two periods.
+// Stable source-document identity. The optional legacy period key is retained for old imports.
 export const spendingSourceDocuments = pgTable(
   "spending_source_documents",
   {
     sourceProducer: text("source_producer").notNull(),
     sourceDocumentId: text("source_document_id").notNull(),
-    sourcePeriodKey: text("source_period_key").notNull(),
+    sourcePeriodKey: text("source_period_key"),
   },
   (table) => [
     primaryKey({ columns: [table.sourceProducer, table.sourceDocumentId] }),
-    uniqueIndex("spending_source_documents_document_period_unique").on(
-      table.sourceProducer,
-      table.sourceDocumentId,
-      table.sourcePeriodKey,
-    ),
   ],
 );
 
@@ -353,7 +348,7 @@ export const spendingImports = pgTable(
 
     sourceProducer: text("source_producer").notNull(),
     sourceDocumentId: text("source_document_id").notNull(),
-    sourcePeriodKey: text("source_period_key").notNull(),
+    sourcePeriodKey: text("source_period_key"),
     sourceRevision: text("source_revision").notNull(),
     sourceContentSha256: text("source_content_sha256").notNull(),
     sourceIssuedAt: timestamp("source_issued_at", {
@@ -365,26 +360,18 @@ export const spendingImports = pgTable(
     })
       .defaultNow()
       .notNull(),
+    importedBy: text("imported_by").notNull().default("legacy"),
+    sourcePeriodCount: integer("source_period_count").notNull().default(1),
   },
   (table) => [
     foreignKey({
-      columns: [
-        table.sourceProducer,
-        table.sourceDocumentId,
-        table.sourcePeriodKey,
-      ],
+      columns: [table.sourceProducer, table.sourceDocumentId],
       foreignColumns: [
         spendingSourceDocuments.sourceProducer,
         spendingSourceDocuments.sourceDocumentId,
-        spendingSourceDocuments.sourcePeriodKey,
       ],
-      name: "spending_imports_source_document_period_spending_source_documents_fk",
+      name: "spending_imports_source_document_spending_source_documents_fk",
     }),
-    uniqueIndex("spending_imports_id_producer_period_unique").on(
-      table.id,
-      table.sourceProducer,
-      table.sourcePeriodKey,
-    ),
     uniqueIndex("spending_imports_id_producer_unique").on(
       table.id,
       table.sourceProducer,
@@ -398,6 +385,10 @@ export const spendingImports = pgTable(
     index("spending_imports_source_document_index").on(
       table.sourceProducer,
       table.sourceDocumentId,
+    ),
+    check(
+      "spending_imports_source_period_count_check",
+      sql`${table.sourcePeriodCount} >= 1`,
     ),
   ],
 );
@@ -415,25 +406,29 @@ export const spendingPeriods = pgTable(
     endDate: date("end_date").notNull(),
     currency: text("currency").notNull(),
     total: numeric("total").notNull(),
+    status: text("status").notNull().default("completed"),
   },
   (table) => [
     foreignKey({
-      columns: [table.importId, table.sourceProducer, table.sourcePeriodKey],
-      foreignColumns: [
-        spendingImports.id,
-        spendingImports.sourceProducer,
-        spendingImports.sourcePeriodKey,
-      ],
-      name: "spending_periods_import_id_source_producer_period_spending_imports_fk",
+      columns: [table.importId, table.sourceProducer],
+      foreignColumns: [spendingImports.id, spendingImports.sourceProducer],
+      name: "spending_periods_import_id_source_producer_spending_imports_fk",
     }),
     uniqueIndex("spending_periods_id_producer_unique").on(
       table.id,
       table.sourceProducer,
     ),
-    uniqueIndex("spending_periods_import_unique").on(table.importId),
+    uniqueIndex("spending_periods_id_import_unique").on(
+      table.id,
+      table.importId,
+    ),
     uniqueIndex("spending_periods_source_period_unique").on(
       table.sourceProducer,
       table.sourcePeriodKey,
+    ),
+    check(
+      "spending_periods_status_check",
+      sql`${table.status} in ('partial', 'completed')`,
     ),
   ],
 );
@@ -505,9 +500,11 @@ export const spendingTransactions = pgTable(
     periodId: uuid("period_id").notNull(),
     periodCategoryId: uuid("period_category_id").notNull(),
     sourceTransactionKey: text("source_transaction_key").notNull(),
-    sourceTransactionDate: date("source_transaction_date").notNull(),
+    sourceTransactionDate: date("source_transaction_date"),
     description: text("description").notNull(),
     amount: numeric("amount").notNull(),
+    lineType: text("line_type").notNull().default("transaction"),
+    displayOrder: integer("display_order").notNull().default(0),
   },
   (table) => [
     foreignKey({
@@ -525,6 +522,54 @@ export const spendingTransactions = pgTable(
     index("spending_transactions_period_date_index").on(
       table.periodId,
       table.sourceTransactionDate,
+    ),
+    check(
+      "spending_transactions_line_type_check",
+      sql`${table.lineType} in ('transaction', 'assumption', 'adjustment')`,
+    ),
+    check(
+      "spending_transactions_transaction_date_check",
+      sql`${table.lineType} <> 'transaction' or ${table.sourceTransactionDate} is not null`,
+    ),
+    check(
+      "spending_transactions_display_order_check",
+      sql`${table.displayOrder} >= 0`,
+    ),
+  ],
+);
+
+// Per-period reconciliation outcomes provide a private-source-free audit trail.
+// The source identity remains durable even if a later replacement removes the current snapshot row.
+export const spendingReconciliationLog = pgTable(
+  "spending_reconciliation_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    importId: uuid("import_id").notNull(),
+    periodId: uuid("period_id"),
+    sourceProducer: text("source_producer").notNull(),
+    sourcePeriodKey: text("source_period_key").notNull(),
+    action: text("action").notNull(),
+    summary: text("summary"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.importId],
+      foreignColumns: [spendingImports.id],
+      name: "spending_reconciliation_log_import_spending_imports_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.periodId],
+      foreignColumns: [spendingPeriods.id],
+      name: "spending_reconciliation_log_period_spending_periods_fk",
+    }).onDelete("set null"),
+    index("spending_reconciliation_log_import_id_index").on(table.importId),
+    index("spending_reconciliation_log_period_id_index").on(table.periodId),
+    check(
+      "spending_reconciliation_log_action_check",
+      sql`${table.action} in ('insert', 'update', 'unchanged', 'partial-refresh', 'completed-from-partial')`,
     ),
   ],
 );
