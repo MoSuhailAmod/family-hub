@@ -19,6 +19,7 @@ const spendingTableNames = [
   "spending_categories",
   "spending_period_categories",
   "spending_transactions",
+  "spending_reconciliation_log",
   "spending_reporting_groups",
   "spending_category_reporting_groups",
 ];
@@ -82,7 +83,7 @@ test("applies Spending migration through Drizzle on a fresh PostgreSQL 17 databa
   }
 });
 
-test("preserves amended-import period identity and rejects document-period collisions", async () => {
+test("preserves amended-import audit identity and permits a document revision to cover multiple periods", async () => {
   const client = await databaseClient("family_hub_import_audit");
 
   try {
@@ -152,19 +153,102 @@ test("preserves amended-import period identity and rejects document-period colli
          'argent', 'spending-2026-09', '2026-09', '1', 'sha-3', now()
        )`,
     );
+    await client.query(
+      `insert into spending_periods (
+         id, import_id, source_producer, source_period_key,
+         start_date, end_date, currency, total
+       ) values (
+         '00000000-0000-0000-0000-000000000005',
+         '00000000-0000-0000-0000-000000000001',
+         'argent', '2026-09', '2026-09-01', '2026-09-30', 'ZAR', 100
+       )`,
+    );
+    await client.query(
+      `insert into spending_periods (
+         id, import_id, source_producer, source_period_key,
+         start_date, end_date, currency, total
+       ) values (
+         '00000000-0000-0000-0000-000000000006',
+         '00000000-0000-0000-0000-000000000001',
+         'argent', '2026-10', '2026-10-01', '2026-10-31', 'ZAR', 100
+       )`,
+    );
+    const periods = await client.query<{ source_period_key: string }>(
+      `select source_period_key
+         from spending_periods
+        where import_id = '00000000-0000-0000-0000-000000000001'
+        order by source_period_key`,
+    );
+    assert.deepEqual(periods.rows, [
+      { source_period_key: "2026-09" },
+      { source_period_key: "2026-10" },
+    ]);
+
+    await client.query(
+      `insert into spending_categories (id, source_producer, source_category_key)
+       values ('00000000-0000-0000-0000-000000000007', 'argent', 'adjustments')`,
+    );
+    await client.query(
+      `insert into spending_period_categories (
+         id, period_id, category_id, source_producer, source_category_name, total, transactions_provided
+       ) values (
+         '00000000-0000-0000-0000-000000000008',
+         '00000000-0000-0000-0000-000000000005',
+         '00000000-0000-0000-0000-000000000007',
+         'argent', 'Adjustments', 0, true
+       )`,
+    );
     await assert.rejects(
       client.query(
-        `insert into spending_periods (
-           id, import_id, source_producer, source_period_key,
-           start_date, end_date, currency, total
+        `insert into spending_transactions (
+           id, period_id, period_category_id, source_transaction_key,
+           source_transaction_date, description, amount, line_type
          ) values (
+           '00000000-0000-0000-0000-000000000009',
            '00000000-0000-0000-0000-000000000005',
-           '00000000-0000-0000-0000-000000000001',
-           'argent', '2026-09', '2026-09-01', '2026-09-30', 'ZAR', 100
+           '00000000-0000-0000-0000-000000000008',
+           'missing-date', null, 'Missing date', 0, 'transaction'
          )`,
       ),
-      { code: "23503" },
+      { code: "23514" },
     );
+    await client.query(
+      `insert into spending_transactions (
+         id, period_id, period_category_id, source_transaction_key,
+         source_transaction_date, description, amount, line_type
+       ) values (
+         '00000000-0000-0000-0000-000000000010',
+         '00000000-0000-0000-0000-000000000005',
+         '00000000-0000-0000-0000-000000000008',
+         'assumption-without-date', null, 'Assumption', 0, 'assumption'
+       )`,
+    );
+    await client.query(
+      `insert into spending_reconciliation_log (
+         import_id, period_id, source_producer, source_period_key, action
+       ) values (
+         '00000000-0000-0000-0000-000000000001',
+         '00000000-0000-0000-0000-000000000005',
+         'argent', '2026-09', 'insert'
+       )`,
+    );
+    await client.query(
+      `delete from spending_periods
+        where id = '00000000-0000-0000-0000-000000000005'`,
+    );
+    const retainedAudit = await client.query<{
+      import_id: string;
+      period_id: string | null;
+      source_period_key: string;
+    }>(
+      `select import_id, period_id, source_period_key
+         from spending_reconciliation_log`,
+    );
+    assert.deepEqual(retainedAudit.rows, [{
+      import_id: '00000000-0000-0000-0000-000000000001',
+      period_id: null,
+      source_period_key: '2026-09',
+    }]);
   } finally {
     await client.end();
   }
@@ -287,6 +371,9 @@ test("upgrades an existing PostgreSQL 17 database through the Spending migration
       "0001_pink_skin",
       "0002_first_annihilus",
       "0003_odd_scream",
+      "0004_simple_argent",
+      "0005_cheerful_quasar",
+      "0006_salty_lilandra",
     ]) {
       await cp(
         join(migrationsFolder, `${tag}.sql`),
@@ -297,14 +384,64 @@ test("upgrades an existing PostgreSQL 17 database through the Spending migration
     const journal = JSON.parse(
       await readFile(join(legacyMetaFolder, "_journal.json"), "utf8"),
     ) as { entries: unknown[] };
-    journal.entries = journal.entries.slice(0, 4);
+    journal.entries = journal.entries.slice(0, 7);
     await writeFile(
       join(legacyMetaFolder, "_journal.json"),
       `${JSON.stringify(journal, null, 2)}\n`,
     );
 
     await applyMigrations(client, legacyMigrationsFolder);
+    await client.query(
+      `insert into spending_source_documents (
+         source_producer, source_document_id, source_period_key
+       ) values ('legacy', 'spending-2026-08', '2026-08')`,
+    );
+    await client.query(
+      `insert into spending_imports (
+         id, source_producer, source_document_id, source_period_key,
+         source_revision, source_content_sha256, source_issued_at
+       ) values (
+         '00000000-0000-0000-0000-000000000088',
+         'legacy', 'spending-2026-08', '2026-08', '1', 'legacy-sha', now()
+       )`,
+    );
+    await client.query(
+      `insert into spending_periods (
+         id, import_id, source_producer, source_period_key,
+         start_date, end_date, currency, total
+       ) values (
+         '00000000-0000-0000-0000-000000000089',
+         '00000000-0000-0000-0000-000000000088',
+         'legacy', '2026-08', '2026-08-01', '2026-08-31', 'ZAR', 100
+       )`,
+    );
+
     await applyMigrations(client, migrationsFolder);
+    await client.query(
+      `insert into spending_periods (
+         id, import_id, source_producer, source_period_key,
+         start_date, end_date, currency, total, status
+       ) values (
+         '00000000-0000-0000-0000-000000000090',
+         '00000000-0000-0000-0000-000000000088',
+         'legacy', '2026-09', '2026-09-01', '2026-09-30', 'ZAR', 125, 'partial'
+       )`,
+    );
+    const migrated = await client.query<{
+      imported_by: string;
+      source_period_count: number;
+      status: string;
+    }>(
+      `select imported.imported_by, imported.source_period_count, period.status
+         from spending_periods period
+         join spending_imports imported on imported.id = period.import_id
+        where period.source_producer = 'legacy'
+        order by period.source_period_key`,
+    );
+    assert.deepEqual(migrated.rows, [
+      { imported_by: 'legacy', source_period_count: 1, status: 'completed' },
+      { imported_by: 'legacy', source_period_count: 1, status: 'partial' },
+    ]);
     await assertSpendingTablesExist(client);
   } finally {
     await client.end();

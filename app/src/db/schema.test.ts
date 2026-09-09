@@ -94,9 +94,11 @@ test("defines flexible Spending source snapshots and future reporting mappings",
   assertTableColumns("spendingImports", "spending_imports", [
     "id",
     "importedAt",
+    "importedBy",
     "sourceContentSha256",
     "sourceDocumentId",
     "sourceIssuedAt",
+    "sourcePeriodCount",
     "sourcePeriodKey",
     "sourceProducer",
     "sourceRevision",
@@ -109,6 +111,7 @@ test("defines flexible Spending source snapshots and future reporting mappings",
     "sourcePeriodKey",
     "sourceProducer",
     "startDate",
+    "status",
     "total",
   ]);
   assertTableColumns("spendingCategories", "spending_categories", [
@@ -128,7 +131,9 @@ test("defines flexible Spending source snapshots and future reporting mappings",
   assertTableColumns("spendingTransactions", "spending_transactions", [
     "amount",
     "description",
+    "displayOrder",
     "id",
+    "lineType",
     "periodCategoryId",
     "periodId",
     "sourceTransactionDate",
@@ -146,22 +151,21 @@ test("defines flexible Spending source snapshots and future reporting mappings",
 
   assert.deepEqual(constraintNames(schema.spendingSourceDocuments), {
     checks: [],
-    indexes: ["spending_source_documents_document_period_unique"],
+    indexes: [],
   });
   assert.deepEqual(constraintNames(schema.spendingImports), {
-    checks: [],
+    checks: ["spending_imports_source_period_count_check"],
     indexes: [
-      "spending_imports_id_producer_period_unique",
       "spending_imports_id_producer_unique",
       "spending_imports_source_document_index",
       "spending_imports_source_revision_unique",
     ],
   });
   assert.deepEqual(constraintNames(schema.spendingPeriods), {
-    checks: [],
+    checks: ["spending_periods_status_check"],
     indexes: [
+      "spending_periods_id_import_unique",
       "spending_periods_id_producer_unique",
-      "spending_periods_import_unique",
       "spending_periods_source_period_unique",
     ],
   });
@@ -182,7 +186,11 @@ test("defines flexible Spending source snapshots and future reporting mappings",
     ],
   });
   assert.deepEqual(constraintNames(schema.spendingTransactions), {
-    checks: [],
+    checks: [
+      "spending_transactions_display_order_check",
+      "spending_transactions_line_type_check",
+      "spending_transactions_transaction_date_check",
+    ],
     indexes: [
       "spending_transactions_period_category_id_index",
       "spending_transactions_period_date_index",
@@ -190,10 +198,10 @@ test("defines flexible Spending source snapshots and future reporting mappings",
     ],
   });
   assert.deepEqual(foreignKeyNames(schema.spendingImports), [
-    "spending_imports_source_document_period_spending_source_documents_fk",
+    "spending_imports_source_document_spending_source_documents_fk",
   ]);
   assert.deepEqual(foreignKeyNames(schema.spendingPeriods), [
-    "spending_periods_import_id_source_producer_period_spending_imports_fk",
+    "spending_periods_import_id_source_producer_spending_imports_fk",
   ]);
   assert.deepEqual(foreignKeyNames(schema.spendingPeriodCategories), [
     "spending_period_categories_category_id_source_producer_spending_categories_fk",
@@ -211,6 +219,93 @@ test("defines flexible Spending source snapshots and future reporting mappings",
     checks: [],
     indexes: ["spending_category_reporting_groups_category_group_unique"],
   });
+});
+
+test("defines Spending V2 reconciliation persistence and provenance", () => {
+  assertTableColumns("spendingImports", "spending_imports", [
+    "id",
+    "importedAt",
+    "importedBy",
+    "sourceContentSha256",
+    "sourceDocumentId",
+    "sourceIssuedAt",
+    "sourcePeriodCount",
+    "sourcePeriodKey",
+    "sourceProducer",
+    "sourceRevision",
+  ]);
+  assertTableColumns("spendingPeriods", "spending_periods", [
+    "currency",
+    "endDate",
+    "id",
+    "importId",
+    "sourcePeriodKey",
+    "sourceProducer",
+    "startDate",
+    "status",
+    "total",
+  ]);
+  assertTableColumns("spendingTransactions", "spending_transactions", [
+    "amount",
+    "description",
+    "displayOrder",
+    "id",
+    "lineType",
+    "periodCategoryId",
+    "periodId",
+    "sourceTransactionDate",
+    "sourceTransactionKey",
+  ]);
+  assertTableColumns("spendingReconciliationLog", "spending_reconciliation_log", [
+    "action",
+    "createdAt",
+    "id",
+    "importId",
+    "periodId",
+    "sourcePeriodKey",
+    "sourceProducer",
+    "summary",
+  ]);
+
+  assert.deepEqual(constraintNames(schema.spendingImports), {
+    checks: ["spending_imports_source_period_count_check"],
+    indexes: [
+      "spending_imports_id_producer_unique",
+      "spending_imports_source_document_index",
+      "spending_imports_source_revision_unique",
+    ],
+  });
+  assert.deepEqual(constraintNames(schema.spendingPeriods), {
+    checks: ["spending_periods_status_check"],
+    indexes: [
+      "spending_periods_id_import_unique",
+      "spending_periods_id_producer_unique",
+      "spending_periods_source_period_unique",
+    ],
+  });
+  assert.deepEqual(constraintNames(schema.spendingTransactions), {
+    checks: [
+      "spending_transactions_display_order_check",
+      "spending_transactions_line_type_check",
+      "spending_transactions_transaction_date_check",
+    ],
+    indexes: [
+      "spending_transactions_period_category_id_index",
+      "spending_transactions_period_date_index",
+      "spending_transactions_period_source_transaction_unique",
+    ],
+  });
+  assert.deepEqual(constraintNames(schema.spendingReconciliationLog), {
+    checks: ["spending_reconciliation_log_action_check"],
+    indexes: [
+      "spending_reconciliation_log_import_id_index",
+      "spending_reconciliation_log_period_id_index",
+    ],
+  });
+  assert.deepEqual(foreignKeyNames(schema.spendingReconciliationLog), [
+    "spending_reconciliation_log_import_spending_imports_fk",
+    "spending_reconciliation_log_period_spending_periods_fk",
+  ]);
 });
 
 test("defines required notification constraints and idempotency indexes", () => {
