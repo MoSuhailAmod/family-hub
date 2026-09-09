@@ -4,7 +4,7 @@
 
 The normal household-facing input is a completed household Spending Markdown document (`.md`; `.markdown` is also accepted). The file picker also keeps `.json` support for the machine-readable `spending-import/v1` contract.
 
-Markdown is a deterministic adapter to that same canonical contract. It does not create another database or persistence route: after preview, the existing Spending import endpoint and service validate, de-duplicate, and replace imported snapshots exactly as they do for JSON.
+Markdown is a deterministic adapter to that same canonical contract. Family Hub prepares Markdown on its server before previewing it, so SHA-256 identities do not depend on browser Web Crypto or a secure browser context. It does not create another database or persistence route: after preview, the existing Spending import endpoint and service validate, de-duplicate, and replace imported snapshots exactly as they do for JSON.
 
 Family Hub treats the completed report as the final source of truth. It does not recalculate totals from transaction rows, categorise merchants, apply exclusions, match refunds, or reinterpret financial data.
 

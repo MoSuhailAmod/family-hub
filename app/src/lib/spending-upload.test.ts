@@ -5,11 +5,12 @@ import {
   contentSha256For,
   type SpendingImportPayload,
 } from "./spending-import";
+import { parseSpendingMarkdownDocument } from "./spending-markdown";
 import {
   MAX_SPENDING_UPLOAD_BYTES,
-  parseSpendingMarkdownDocument,
   parseSpendingUploadContent,
   parseSpendingUploadDocument,
+  prepareSpendingMarkdownUpload,
   submitSpendingUpload,
   summarizeSpendingUpload,
 } from "./spending-upload";
@@ -117,7 +118,7 @@ test("identifies an uploaded Spending document that will replace an existing per
 });
 
 test("rejects malformed and unsupported upload documents before import", () => {
-  assert.throws(() => parseSpendingUploadDocument("not JSON"), /valid JSON/i);
+  assert.throws(() => parseSpendingUploadDocument("not JSON"), /Family Hub spending-import\/v1.*\.md/i);
   assert.throws(
     () => parseSpendingUploadDocument(JSON.stringify({ schemaVersion: "other" })),
     /spending-import\/v1/i,
@@ -129,7 +130,7 @@ test("rejects malformed and unsupported upload documents before import", () => {
       period: { sourcePeriodKey: "2026-08", startDate: "2026-08-01", endDate: "2026-08-31", currency: "ZAR", total: "100.00" },
       categories: [],
     })),
-    /supported spending-import\/v1/i,
+    /Family Hub spending-import\/v1/i,
   );
 });
 
@@ -238,10 +239,52 @@ test("rejects a malformed dated transaction while allowing non-dated category bu
   );
 });
 
-test("selects Markdown and JSON documents by filename without changing the JSON contract", async () => {
-  const markdown = await parseSpendingUploadContent(markdownDocument, "Household Spending Budget.md");
+test("hashes server-side Markdown without global Web Crypto", async () => {
+  const originalCrypto = globalThis.crypto;
+  try {
+    Object.defineProperty(globalThis, "crypto", { configurable: true, value: undefined });
+    const payload = await parseSpendingMarkdownDocument(markdownDocument);
+    assert.match(payload.source.revision, /^markdown-[a-f0-9]{64}$/);
+    assert.equal(payload.source.contentSha256, contentSha256For(payload as SpendingImportPayload));
+  } finally {
+    Object.defineProperty(globalThis, "crypto", { configurable: true, value: originalCrypto });
+  }
+});
+
+test("prepares Markdown on the server without browser Web Crypto", async () => {
+  const prepared = await parseSpendingMarkdownDocument(markdownDocument);
+  const originalCrypto = globalThis.crypto;
+  const requested: { url: string; init?: RequestInit }[] = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    requested.push({ url: String(url), init });
+    return Response.json(prepared);
+  };
+
+  try {
+    Object.defineProperty(globalThis, "crypto", { configurable: true, value: undefined });
+    const payload = await prepareSpendingMarkdownUpload(fetcher, markdownDocument);
+    assert.equal(payload.period.sourcePeriodKey, "2026-07-28-to-2026-08-27");
+    assert.equal(payload.source.contentSha256, contentSha256For(payload as SpendingImportPayload));
+  } finally {
+    Object.defineProperty(globalThis, "crypto", { configurable: true, value: originalCrypto });
+  }
+
+  assert.deepEqual(requested, [{
+    url: "/api/spending/imports/prepare",
+    init: {
+      method: "POST",
+      headers: { "content-type": "text/markdown" },
+      body: markdownDocument,
+    },
+  }]);
+});
+
+test("keeps canonical JSON parsing separate from server-prepared Markdown", async () => {
+  await assert.rejects(
+    () => parseSpendingUploadContent(markdownDocument, "Household Spending Budget.md"),
+    /prepared by Family Hub/i,
+  );
   const json = await parseSpendingUploadContent(document, "spending-import.json");
-  assert.equal(markdown.period.sourcePeriodKey, "2026-07-28-to-2026-08-27");
   assert.deepEqual(json, parseSpendingUploadDocument(document));
   await assert.rejects(
     () => parseSpendingUploadContent(markdownDocument, "Household Spending Budget.txt"),
