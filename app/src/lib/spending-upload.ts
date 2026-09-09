@@ -1,6 +1,8 @@
+import { parseSpendingMarkdownDocument } from "./spending-markdown";
+
 export const MAX_SPENDING_UPLOAD_BYTES = 5 * 1024 * 1024;
 
-type SpendingUploadDocument = {
+export type SpendingUploadDocument = {
   schemaVersion: "spending-import/v1";
   source: {
     producer: string;
@@ -89,6 +91,17 @@ export function parseSpendingUploadDocument(content: string): SpendingUploadDocu
     throw new Error("The uploaded file must use the supported spending-import/v1 document format.");
   }
   return document;
+}
+
+export { parseSpendingMarkdownDocument };
+
+export async function parseSpendingUploadContent(
+  content: string,
+  fileName: string,
+): Promise<SpendingUploadDocument> {
+  if (/\.(?:md|markdown)$/i.test(fileName)) return parseSpendingMarkdownDocument(content);
+  if (/\.json$/i.test(fileName)) return parseSpendingUploadDocument(content);
+  throw new Error("Choose a completed Spending document with a .md or .json filename.");
 }
 
 export function summarizeSpendingUpload(
