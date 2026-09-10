@@ -20,7 +20,18 @@ test("Spending dashboard gives every summary metric its own card and shows perce
   const page = await readFile(pagePath, "utf8");
 
   assert.match(page, /spending-metric-card/);
+  assert.match(page, /spending-metric-icon/);
+  assert.match(page, /<Tags size=\{18\}/);
+  assert.match(page, /<ReceiptText size=\{18\}/);
+  assert.match(page, /<TrendingUp size=\{18\}/);
   assert.match(page, /Compared with prior completed period/);
   assert.match(page, /percentageChange/);
   assert.match(page, /spending-partial-banner-icon/);
+});
+
+test("Spending dashboard uses the approved V2 header subtitle", async () => {
+  const page = await readFile(pagePath, "utf8");
+
+  assert.match(page, /Track and understand your household spending\./);
+  assert.doesNotMatch(page, /Review household spending at a glance\./);
 });

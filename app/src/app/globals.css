@@ -2249,6 +2249,10 @@ a {
 .spending-freshness { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; }
 .spending-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
 .spending-metric-card { display: grid; gap: 5px; min-width: 0; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.spending-metric-icon { display: grid; width: 34px; height: 34px; place-items: center; margin-bottom: 4px; border-radius: 10px; }
+.spending-metric-icon.is-categories { color: var(--accent); background: var(--accent-soft); }
+.spending-metric-icon.is-transactions { color: var(--navy); background: color-mix(in srgb, var(--navy) 9%, var(--surface)); }
+.spending-metric-icon.is-change { color: var(--accent-dark); background: color-mix(in srgb, var(--accent-dark) 12%, var(--surface)); }
 .spending-metrics span { color: var(--text-muted); font-size: 12px; font-weight: 700; }
 .spending-metrics strong { font-size: 20px; overflow-wrap: anywhere; }
 .spending-metric-card small { color: var(--text-muted); font-size: 12px; }

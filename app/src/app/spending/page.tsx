@@ -9,7 +9,10 @@ import {
   ChevronRight,
   CircleCheck,
   Clock3,
+  ReceiptText,
   RotateCcw,
+  Tags,
+  TrendingUp,
   WalletCards,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -204,7 +207,7 @@ export default function SpendingPage() {
         <div>
           <p className="eyebrow">Household finances</p>
           <h1>Spending</h1>
-          <p className="page-subtitle">Review household spending at a glance.</p>
+          <p className="page-subtitle">Track and understand your household spending.</p>
         </div>
 
       </header>
@@ -368,9 +371,18 @@ export default function SpendingPage() {
           </section>
 
           <section className="spending-metrics" aria-label="Period summary">
-            <div className="spending-metric-card"><span>Categories</span><strong>{categories.length}</strong><small>in this period</small></div>
-            <div className="spending-metric-card"><span>Transactions</span><strong>{transactionCount}</strong><small>imported entries</small></div>
-            <div className="spending-metric-card"><span>Compared with prior completed period</span>{comparison ? <><strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{comparison.percentageChange === null ? "—" : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}%`}</strong><small>{signedAmount(period.currency, comparison.absoluteChange)}</small></> : <><strong>—</strong><small>No comparable period</small></>}</div>
+            <div className="spending-metric-card">
+              <span className="spending-metric-icon is-categories" aria-hidden="true"><Tags size={18} /></span>
+              <span>Categories</span><strong>{categories.length}</strong><small>in this period</small>
+            </div>
+            <div className="spending-metric-card">
+              <span className="spending-metric-icon is-transactions" aria-hidden="true"><ReceiptText size={18} /></span>
+              <span>Transactions</span><strong>{transactionCount}</strong><small>imported entries</small>
+            </div>
+            <div className="spending-metric-card">
+              <span className="spending-metric-icon is-change" aria-hidden="true"><TrendingUp size={18} /></span>
+              <span>Compared with prior completed period</span>{comparison ? <><strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{comparison.percentageChange === null ? "—" : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}%`}</strong><small>{signedAmount(period.currency, comparison.absoluteChange)}</small></> : <><strong>—</strong><small>No comparable period</small></>}
+            </div>
           </section>
 
           {partialPeriod && periodId(partialPeriod) !== periodId(period) && (
