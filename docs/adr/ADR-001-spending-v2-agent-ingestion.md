@@ -1,6 +1,6 @@
 # ADR-001: Spending V2 — agent-ingested, database-backed Spending
 
-- **Status:** Accepted
+- **Status:** Accepted — active Spending architecture
 - **Date:** 2026-09-09
 - **Parent feature:** #60 — `Spending | Feature: add household spending history and insights`
 
@@ -60,7 +60,7 @@ August     new       → insert
 September  partial   → insert/update as partial
 ```
 
-This is intentionally different from the current Markdown upload implementation, which selects one completed period.
+This is intentionally different from the **superseded legacy Markdown upload implementation**, which selected one completed period.
 
 ### 4. Family Hub owns reconciliation and persistence
 
@@ -148,6 +148,12 @@ Spending source files contain private household financial information.
 - Logs should record reconciliation outcomes without unnecessarily duplicating transaction-level private data.
 - Agent/API interfaces expose only the data required for the workflow.
 - Raw source retention is not required for dashboard operation.
+
+## Release-readiness validation
+
+The active V2 delivery is verified with sanitized, representative fixtures only. `app/src/lib/spending-cumulative-workflow.integration.test.ts` drives the production HTTP adapter, reconciliation service, migrated PostgreSQL schema, and fixture snapshots through initial cumulative ingestion, exact-repeat idempotency, historical correction, new completed-period insertion, partial refresh, and partial-to-completed finalization. `app/src/lib/spending-reconciliation-data.integration.test.ts` additionally proves a forced persistence failure rolls back the replacement, its import record, and reconciliation-log entry.
+
+These checks are release evidence for the agent-led cumulative workflow; no real household Markdown or transaction data belongs in the repository.
 
 ## Consequences
 

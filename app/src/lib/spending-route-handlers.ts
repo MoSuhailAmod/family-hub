@@ -3,6 +3,7 @@ import type {
   SpendingCategory,
   SpendingImportMetadata,
   SpendingPeriod,
+  SpendingReconciliationHistoryEntry,
   SpendingReportingCategory,
   SpendingReportingGroup,
   SpendingTransaction,
@@ -38,6 +39,7 @@ export type SpendingService = {
     sourceCategoryKey: string,
   ) => Promise<SpendingCategory[]>;
   listImportMetadata: (sourceProducer?: string) => Promise<SpendingImportMetadata[]>;
+  listReconciliationHistory: (sourceProducer?: string) => Promise<SpendingReconciliationHistoryEntry[]>;
 };
 
 function requiredKey(value: string, name: string) {

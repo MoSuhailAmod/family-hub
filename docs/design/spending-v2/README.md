@@ -1,6 +1,6 @@
 # Spending V2 design reference
 
-This document captures the approved visual/interaction direction for the Spending V2 redesign described in [ADR-001](../../adr/ADR-001-spending-v2-agent-ingestion.md).
+This document captures the active visual/interaction direction for the Spending V2 architecture described in [ADR-001](../../adr/ADR-001-spending-v2-agent-ingestion.md). The legacy in-page Markdown/JSON upload flow is superseded; the normal Spending UI is a read-only view of persisted data.
 
 The generated planning mockups from the design discussion are represented here as implementation references so future tasks can work from a stable source in the repository. These are directional product designs, not pixel-perfect acceptance screenshots.
 

@@ -145,6 +145,15 @@ test("rolls back a changed-period replacement when a persistence write fails", a
 
   const stored = await client.query<{ total: string }>("select total from spending_periods where source_period_key = '2026-11'");
   assert.deepEqual(stored.rows, [{ total: "100.00" }]);
+
+  const failedImport = await client.query<{ count: string }>(
+    "select count(*)::text as count from spending_imports where source_revision = '4'",
+  );
+  const history = await client.query<{ action: string }>(
+    "select action from spending_reconciliation_log where source_period_key = '2026-11' order by created_at",
+  );
+  assert.deepEqual(failedImport.rows, [{ count: "0" }]);
+  assert.deepEqual(history.rows, [{ action: "insert" }]);
 });
 
 test("rejects completed-to-partial regressions without changing finalized history", async () => {

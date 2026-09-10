@@ -15,7 +15,10 @@ import {
 } from "@/lib/calendar-service";
 
 type SpendingMcpDependencies = {
-  spendingService?: Pick<SpendingService, "listPeriods" | "getPeriod" | "listImportMetadata">;
+  spendingService?: Pick<
+    SpendingService,
+    "listPeriods" | "getPeriod" | "listImportMetadata" | "listReconciliationHistory"
+  >;
   spendingReconciliationService?: SpendingReconciliationService;
 };
 
@@ -306,6 +309,26 @@ export function createFamilyHubMcpServerWithDependencies(
       } catch {
         return {
           content: [{ type: "text", text: JSON.stringify({ success: false, code: "READ_FAILED", error: "Unable to list Spending imports" }) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "spending_list_reconciliation_history",
+    {
+      description: "List safe Spending reconciliation outcomes and source provenance without transaction or raw document content.",
+      inputSchema: z.object({ sourceProducer: z.string().min(1).optional() }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ sourceProducer }) => {
+      try {
+        const history = await spendingReads.listReconciliationHistory(sourceProducer);
+        return { content: [{ type: "text", text: JSON.stringify({ success: true, data: history }) }] };
+      } catch {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, code: "READ_FAILED", error: "Unable to list Spending reconciliation history" }) }],
           isError: true,
         };
       }

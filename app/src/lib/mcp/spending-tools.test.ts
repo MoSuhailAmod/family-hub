@@ -17,12 +17,26 @@ const period = {
   status: "completed" as const,
 };
 
+const reconciliation = {
+  sourceProducer: period.sourceProducer,
+  sourceDocumentId: period.sourceDocumentId,
+  sourceRevision: period.sourceRevision,
+  sourceIssuedAt: period.sourceIssuedAt,
+  importedAt: period.importedAt,
+  importedBy: "chatgpt",
+  contentSha256: "a".repeat(64),
+  sourcePeriodKey: period.sourcePeriodKey,
+  action: "insert" as const,
+  reconciledAt: new Date("2026-09-01T08:00:01.000Z"),
+};
+
 test("registers Spending MCP reconciliation and review tools over shared services", async () => {
   const server = createFamilyHubMcpServerWithDependencies({
     spendingService: {
       listPeriods: async () => [period],
       getPeriod: async () => period,
       listImportMetadata: async () => [{ ...period, contentSha256: "a".repeat(64) }],
+      listReconciliationHistory: async () => [reconciliation],
     },
     spendingReconciliationService: {
       reconcile: async () => ({
@@ -43,13 +57,20 @@ test("registers Spending MCP reconciliation and review tools over shared service
   })._registeredTools;
 
   assert.deepEqual(
-    ["spending_list_periods", "spending_get_period", "spending_list_imports", "spending_reconcile_snapshot"].map(
-      (name) => Boolean(tools[name]),
-    ),
-    [true, true, true, true],
+    [
+      "spending_list_periods",
+      "spending_get_period",
+      "spending_list_imports",
+      "spending_list_reconciliation_history",
+      "spending_reconcile_snapshot",
+    ].map((name) => Boolean(tools[name])),
+    [true, true, true, true, true],
   );
 
   const periods = await tools.spending_list_periods.handler({});
+  const history = await tools.spending_list_reconciliation_history.handler({
+    sourceProducer: period.sourceProducer,
+  });
   const reconciled = await tools.spending_reconcile_snapshot.handler({
     snapshot: { schemaVersion: "spending-reconciliation/v1" },
   });
@@ -60,6 +81,15 @@ test("registers Spending MCP reconciliation and review tools over shared service
       ...period,
       sourceIssuedAt: period.sourceIssuedAt.toISOString(),
       importedAt: period.importedAt.toISOString(),
+    }],
+  });
+  assert.deepEqual(JSON.parse(history.content[0].text), {
+    success: true,
+    data: [{
+      ...reconciliation,
+      sourceIssuedAt: reconciliation.sourceIssuedAt.toISOString(),
+      importedAt: reconciliation.importedAt.toISOString(),
+      reconciledAt: reconciliation.reconciledAt.toISOString(),
     }],
   });
   assert.deepEqual(JSON.parse(reconciled.content[0].text), {
