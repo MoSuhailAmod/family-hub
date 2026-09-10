@@ -1844,7 +1844,7 @@ a {
   color: var(--text-muted);
 }
 
-.spending-summary-card,
+.spending-period-hero,
 .spending-categories,
 .spending-empty,
 .spending-loading {
@@ -1854,19 +1854,25 @@ a {
   box-shadow: var(--shadow-sm);
 }
 
-.spending-summary-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 28px;
-}
-
-.spending-summary-card h2 {
-  margin: 5px 0;
-  font-size: clamp(30px, 4vw, 46px);
-  letter-spacing: -0.04em;
-}
+.spending-period-hero { padding: 24px; }
+.spending-period-hero-topline, .spending-period-hero-footer, .spending-period-heading, .spending-period-controls { display: flex; align-items: center; }
+.spending-period-hero-topline, .spending-period-hero-footer { justify-content: space-between; gap: 18px; }
+.spending-period-heading, .spending-period-controls { gap: 10px; }
+.spending-period-icon, .spending-partial-banner-icon { display: grid; flex: 0 0 auto; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.spending-period-icon { width: 42px; height: 42px; }
+.spending-period-label { margin: 2px 0 0; color: var(--text); font-size: 18px; font-weight: 750; letter-spacing: -0.02em; }
+.spending-status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid currentColor; border-radius: 999px; font-size: 12px; font-weight: 750; }
+.spending-status-pill.is-completed { color: var(--success); background: color-mix(in srgb, var(--success) 9%, var(--surface)); }
+.spending-status-pill.is-partial { color: var(--accent); background: var(--accent-soft); }
+.spending-period-total { margin: 28px 0 22px; }
+.spending-period-total p { margin: 0 0 4px; color: var(--text-muted); font-size: 14px; }
+.spending-period-total h2 { margin: 0; font-size: clamp(34px, 5vw, 52px); letter-spacing: -0.05em; }
+.spending-period-controls button { display: grid; width: 36px; height: 36px; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; }
+.spending-period-controls button:hover:not(:disabled), .spending-period-controls button:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+.spending-period-controls button:disabled { cursor: not-allowed; opacity: .42; }
+.spending-period-picker { position: relative; }
+.spending-period-picker select { max-width: 165px; appearance: none; padding: 9px 30px 9px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.spending-period-picker svg { position: absolute; top: 50%; right: 9px; pointer-events: none; transform: translateY(-50%); color: var(--text-muted); }
 
 .spending-period-dates,
 .spending-section-heading > span,
@@ -2125,14 +2131,8 @@ a {
     margin-bottom: 22px;
   }
 
-  .spending-summary-card {
+  .spending-period-hero {
     padding: 22px 18px;
-  }
-
-  .spending-summary-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
   }
 
   .spending-section-heading,
@@ -2246,15 +2246,17 @@ a {
   .spending-history-note, .spending-history-state { padding-right: 16px; padding-left: 16px; }
 }
 
-.spending-freshness { margin: 8px 0 0; color: var(--text-muted); font-size: 13px; }
-.spending-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 20px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--border); box-shadow: var(--shadow-sm); }
-.spending-metrics > div { display: grid; gap: 6px; padding: 18px 22px; background: var(--surface); }
+.spending-freshness { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; }
+.spending-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.spending-metric-card { display: grid; gap: 5px; min-width: 0; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
 .spending-metrics span { color: var(--text-muted); font-size: 12px; font-weight: 700; }
 .spending-metrics strong { font-size: 20px; overflow-wrap: anywhere; }
-.spending-partial-banner { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 20px; padding: 17px 22px; border: 1px solid var(--accent); border-radius: var(--radius-md); background: var(--accent-soft); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.spending-partial-banner > span:first-child { display: grid; gap: 4px; }
+.spending-metric-card small { color: var(--text-muted); font-size: 12px; }
+.spending-partial-banner { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px; margin-top: 20px; padding: 17px 18px; border: 1px solid var(--accent); border-radius: var(--radius-md); background: var(--accent-soft); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.spending-partial-banner-icon { width: 36px; height: 36px; }
+.spending-partial-banner > span:nth-child(2) { display: grid; gap: 4px; }
 .spending-partial-banner small { color: var(--text-muted); }
-.spending-partial-banner > span:last-child { color: var(--accent); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.spending-partial-banner > span:last-child { display: inline-flex; align-items: center; gap: 2px; color: var(--accent); font-size: 14px; font-weight: 700; white-space: nowrap; }
 .spending-recent { margin-top: 20px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
 .spending-recent ul { margin: 0; padding: 0 22px; list-style: none; }
 .spending-recent li { display: flex; justify-content: space-between; gap: 18px; padding: 14px 0; border-top: 1px solid var(--border); }
@@ -2268,4 +2270,4 @@ a {
 .spending-category-chart li > div { height: 8px; overflow: hidden; border-radius: 999px; background: var(--surface-soft); }
 .spending-category-chart i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
 .spending-category-chart strong { white-space: nowrap; }
-@media (max-width: 620px) { .spending-metrics { grid-template-columns: 1fr; } .spending-metrics > div { padding: 16px; } .spending-partial-banner { align-items: start; flex-direction: column; gap: 10px; padding: 16px; } .spending-recent ul { padding: 0 16px; } .spending-category-chart { padding: 18px 16px; } }
+@media (max-width: 620px) { .spending-period-hero { padding: 20px 16px; } .spending-period-hero-footer { align-items: start; flex-direction: column; } .spending-period-controls { width: 100%; } .spending-period-picker { flex: 1; } .spending-period-picker select { width: 100%; max-width: none; } .spending-metrics { grid-template-columns: 1fr; } .spending-metric-card { padding: 16px; } .spending-partial-banner { grid-template-columns: auto 1fr; align-items: start; padding: 16px; } .spending-partial-banner > span:last-child { grid-column: 2; } .spending-recent ul { padding: 0 16px; } .spending-category-chart { padding: 18px 16px; } }

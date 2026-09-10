@@ -3,8 +3,12 @@
 import {
   AlertCircle,
   ArrowLeft,
+  CalendarDays,
   ChevronDown,
-  ReceiptText,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Clock3,
   RotateCcw,
   WalletCards,
 } from "lucide-react";
@@ -33,6 +37,12 @@ function periodId(period: SpendingPeriod) {
 
 function periodLabel(period: SpendingPeriod) {
   return `${period.startDate} – ${period.endDate}`;
+}
+
+function periodMonthLabel(period: SpendingPeriod) {
+  return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(
+    new Date(`${period.startDate}T12:00:00`),
+  );
 }
 
 function amount(currency: string, total: string) {
@@ -184,6 +194,9 @@ export default function SpendingPage() {
     .filter((entry): entry is { period: SpendingPeriod; category: SpendingHistoryEntry["categories"][number] } => Boolean(entry.category));
   const topCategories = [...categories].sort((left, right) => Number(right.total) - Number(left.total)).slice(0, 5);
   const largestCategoryTotal = Math.max(0, ...topCategories.map((category) => Number(category.total)));
+  const selectedPeriodIndex = period ? periods.findIndex((candidate) => periodId(candidate) === periodId(period)) : -1;
+  const previousNavigationPeriod = selectedPeriodIndex >= 0 ? periods[selectedPeriodIndex + 1] : undefined;
+  const nextNavigationPeriod = selectedPeriodIndex > 0 ? periods[selectedPeriodIndex - 1] : undefined;
 
   return (
     <div className="page spending-page">
@@ -193,29 +206,7 @@ export default function SpendingPage() {
           <h1>Spending</h1>
           <p className="page-subtitle">Review household spending at a glance.</p>
         </div>
-        {periods.length > 0 && (
-          <label className="spending-period-select">
-            <span>Period</span>
-            <div>
-              <select
-                aria-label="Select spending period"
-                value={period ? periodId(period) : ""}
-                disabled={loading}
-                onChange={(event) => {
-                  const selected = periods.find((candidate) => periodId(candidate) === event.target.value);
-                  if (selected) void load(selected);
-                }}
-              >
-                {periods.map((item) => (
-                  <option key={periodId(item)} value={periodId(item)}>
-                    {periodLabel(item)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={17} aria-hidden="true" />
-            </div>
-          </label>
-        )}
+
       </header>
 
       {loading ? (
@@ -330,28 +321,63 @@ export default function SpendingPage() {
         </section>
       ) : (
         <>
-          <section className="spending-summary-card" aria-labelledby="spending-total-heading">
-            <div>
-              <p className="section-label">Total spending</p>
-              <h2 id="spending-total-heading">{amount(period.currency, period.total)}</h2>
-              <p className="spending-period-dates">{periodLabel(period)} · <strong>{period.status === "partial" ? "Partial / in progress" : "Completed"}</strong></p>
-              {period.importedAt && <p className="spending-freshness">Last synced {new Date(period.importedAt).toLocaleDateString()} via agent import</p>}
+          <section className="spending-period-hero" aria-labelledby="spending-total-heading">
+            <div className="spending-period-hero-topline">
+              <div className="spending-period-heading">
+                <span className="spending-period-icon" aria-hidden="true"><CalendarDays size={18} /></span>
+                <div>
+                  <p className="section-label">Spending period</p>
+                  <p className="spending-period-label">{periodMonthLabel(period)}</p>
+                </div>
+              </div>
+              <span className={`spending-status-pill ${period.status === "partial" ? "is-partial" : "is-completed"}`}>
+                {period.status === "partial" ? <Clock3 size={14} /> : <CircleCheck size={14} />}
+                {period.status === "partial" ? "Partial" : "Completed"}
+              </span>
             </div>
-            <div className="spending-summary-icon" aria-hidden="true">
-              <ReceiptText size={25} />
+            <div className="spending-period-total">
+              <p>Total household spend</p>
+              <h2 id="spending-total-heading">{amount(period.currency, period.total)}</h2>
+            </div>
+            <div className="spending-period-hero-footer">
+              <div>
+                <p className="spending-period-dates">{periodLabel(period)}</p>
+                {period.importedAt && <p className="spending-freshness">Last synced {new Date(period.importedAt).toLocaleDateString()} via agent import</p>}
+              </div>
+              <div className="spending-period-controls" aria-label="Spending period navigation">
+                <button type="button" aria-label="Previous spending period" title="Previous spending period" disabled={!previousNavigationPeriod || loading} onClick={() => previousNavigationPeriod && void load(previousNavigationPeriod)}>
+                  <ChevronLeft size={18} />
+                </button>
+                {periods.length > 0 && (
+                  <label className="spending-period-picker">
+                    <span className="sr-only">Select spending period</span>
+                    <select aria-label="Select spending period" value={periodId(period)} disabled={loading} onChange={(event) => {
+                      const selected = periods.find((candidate) => periodId(candidate) === event.target.value);
+                      if (selected) void load(selected);
+                    }}>
+                      {periods.map((item) => <option key={periodId(item)} value={periodId(item)}>{periodMonthLabel(item)}</option>)}
+                    </select>
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </label>
+                )}
+                <button type="button" aria-label="Next spending period" title="Next spending period" disabled={!nextNavigationPeriod || loading} onClick={() => nextNavigationPeriod && void load(nextNavigationPeriod)}>
+                  <ChevronRight size={18} />
+                </button>
+              </div>
             </div>
           </section>
 
           <section className="spending-metrics" aria-label="Period summary">
-            <div><span>Categories</span><strong>{categories.length}</strong></div>
-            <div><span>Transactions</span><strong>{transactionCount}</strong></div>
-            <div><span>Compared with prior period</span><strong className={comparison?.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{comparison ? signedAmount(period.currency, comparison.absoluteChange) : "—"}</strong></div>
+            <div className="spending-metric-card"><span>Categories</span><strong>{categories.length}</strong><small>in this period</small></div>
+            <div className="spending-metric-card"><span>Transactions</span><strong>{transactionCount}</strong><small>imported entries</small></div>
+            <div className="spending-metric-card"><span>Compared with prior completed period</span>{comparison ? <><strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{comparison.percentageChange === null ? "—" : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}%`}</strong><small>{signedAmount(period.currency, comparison.absoluteChange)}</small></> : <><strong>—</strong><small>No comparable period</small></>}</div>
           </section>
 
           {partialPeriod && periodId(partialPeriod) !== periodId(period) && (
             <button type="button" className="spending-partial-banner" onClick={() => void load(partialPeriod)}>
+              <span className="spending-partial-banner-icon" aria-hidden="true"><Clock3 size={19} /></span>
               <span><strong>Current period available</strong><small>{periodLabel(partialPeriod)} · Partial / in progress</small></span>
-              <span>View current spending →</span>
+              <span>View current spending <ChevronRight size={16} /></span>
             </button>
           )}
 
