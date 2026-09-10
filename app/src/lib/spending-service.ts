@@ -111,10 +111,14 @@ function requiredKey(value: string, name: string): string {
   return normalized;
 }
 
+function periodDateSortValue(value: unknown): string {
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
 function comparePeriods(a: SpendingPeriod, b: SpendingPeriod) {
   return (
-    b.endDate.localeCompare(a.endDate) ||
-    b.startDate.localeCompare(a.startDate) ||
+    periodDateSortValue(b.endDate).localeCompare(periodDateSortValue(a.endDate)) ||
+    periodDateSortValue(b.startDate).localeCompare(periodDateSortValue(a.startDate)) ||
     a.sourceProducer.localeCompare(b.sourceProducer) ||
     a.sourcePeriodKey.localeCompare(b.sourcePeriodKey)
   );

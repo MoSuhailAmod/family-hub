@@ -134,6 +134,25 @@ test("returns current and historical spending periods with authoritative source 
   );
 });
 
+test("lists PostgreSQL date-backed periods without throwing while sorting them", async () => {
+  const dateBackedAugust = {
+    ...august,
+    startDate: new Date("2026-08-01T00:00:00.000Z"),
+    endDate: new Date("2026-08-31T00:00:00.000Z"),
+  } as unknown as SpendingPeriod;
+  const dateBackedSeptember = {
+    ...september,
+    startDate: new Date("2026-09-01T00:00:00.000Z"),
+    endDate: new Date("2026-09-30T00:00:00.000Z"),
+  } as unknown as SpendingPeriod;
+  const service = createSpendingService({
+    ...repository(),
+    listPeriods: async () => [dateBackedAugust, dateBackedSeptember],
+  });
+
+  assert.deepEqual(await service.listPeriods(), [dateBackedSeptember, dateBackedAugust]);
+});
+
 test("returns dynamic category totals and selected category transactions without recalculation", async () => {
   const service = createSpendingService(repository());
 
