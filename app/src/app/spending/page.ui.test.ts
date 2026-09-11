@@ -68,3 +68,9 @@ test("Spending dashboard uses a compact, accessible history chart in its lower c
   assert.match(page, /spending-history-period-list/);
   assert.doesNotMatch(page, /spending-trend-table/);
 });
+
+test("Spending dashboard formats API ISO dates without appending a second time component", async () => {
+  const page = await readFile(pagePath, "utf8");
+
+  assert.doesNotMatch(page, /new Date\(`\$\{(?:period|entry\.period)\.startDate\}T12:00:00`\)/);
+});
