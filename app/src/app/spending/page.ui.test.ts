@@ -55,3 +55,16 @@ test("Spending dashboard renders recent transactions as compact source-aware row
   assert.match(page, /spending-recent-transaction-content/);
   assert.match(page, /transaction\.lineType/);
 });
+
+test("Spending dashboard uses a compact, accessible history chart in its lower card row", async () => {
+  const page = await readFile(pagePath, "utf8");
+
+  assert.match(page, /spending-dashboard-lower-row/);
+  assert.match(page, /className="spending-history-chart"/);
+  assert.match(page, /Spending history/);
+  assert.match(page, /\{`\$\{periodMonthLabel\(entry\.period\)\}: \$\{amount\(entry\.period\.currency, entry\.period\.total\)\}`\}/);
+  assert.match(page, /spending-history-bar\$\{selected \? " is-selected"/);
+  assert.match(page, /<details className="spending-history-details">/);
+  assert.match(page, /spending-history-period-list/);
+  assert.doesNotMatch(page, /spending-trend-table/);
+});
