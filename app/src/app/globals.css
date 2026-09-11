@@ -1,29 +1,29 @@
 :root {
-  --page-bg: #f4f6f8;
-  --surface: #ffffff;
-  --surface-soft: #f8fafc;
-  --surface-hover: #f1f5f9;
+  --page-bg: #0f1115;
+  --surface: #171a21;
+  --surface-soft: #1d212a;
+  --surface-hover: #252a35;
 
-  --text: #182235;
-  --text-muted: #718096;
-  --text-faint: #9aa6b5;
+  --text: #f5f7fa;
+  --text-muted: #a7b0be;
+  --text-faint: #7f8998;
 
-  --border: #e4e9ef;
-  --border-strong: #d8dee7;
+  --border: #2b313d;
+  --border-strong: #394150;
 
-  --navy: #17293c;
-  --navy-soft: #21384f;
+  --navy: #111820;
+  --navy-soft: #1a2633;
 
-  --accent: #37678f;
-  --accent-dark: #28516f;
-  --accent-soft: #e9f1f7;
+  --accent: #5f9ac7;
+  --accent-dark: #437aa5;
+  --accent-soft: #1d3141;
 
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 22px;
 
   --shadow:
-    0 8px 32px rgba(22, 34, 51, 0.05);
+    0 8px 32px rgba(0, 0, 0, 0.22);
 }
 
 * {
@@ -329,6 +329,11 @@ a {
   box-shadow: var(--shadow);
 }
 
+.dashboard-event,
+.event-card {
+  color: #182235;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -363,14 +368,9 @@ a {
 
 .dashboard-event-card {
   position: relative;
-
   display: grid;
-
-  grid-template-columns:
-    100px minmax(0, 1fr);
-
+  grid-template-columns: 100px minmax(0, 1fr);
   gap: 14px;
-
   padding: 14px 15px;
 
   border:
@@ -378,7 +378,7 @@ a {
     color-mix(
       in srgb,
       var(--person-color) 24%,
-      #e7ebf0
+      var(--border)
     );
 
   border-radius: 13px;
@@ -386,8 +386,8 @@ a {
   background:
     color-mix(
       in srgb,
-      var(--person-color) 8%,
-      white
+      var(--person-color) 10%,
+      var(--surface)
     );
 }
 
