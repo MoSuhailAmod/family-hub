@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   calculatePeriodComparison,
+  calculateSpendingShare,
+  compareDecimalStrings,
   filterSpendingTransactions,
   loadSpendingDashboard,
   loadSpendingHistory,
@@ -337,4 +339,13 @@ test("sorts arbitrary-precision imported decimal amounts without rounding them",
   ];
 
   assert.deepEqual(sortSpendingTransactions(transactions, "amount"), [transactions[1], transactions[0]]);
+});
+
+test("calculates category shares from arbitrary-precision persisted decimals", () => {
+  assert.equal(calculateSpendingShare("9007199254740992.99", "9007199254740993.00"), "100");
+  assert.equal(calculateSpendingShare("1.005", "3.00"), "33.5");
+  assert.equal(calculateSpendingShare("-10.00", "100.00"), "-10");
+  assert.ok(compareDecimalStrings(calculateSpendingShare(`1${"0".repeat(400)}`, "1") ?? "0", "100") > 0);
+  assert.equal(calculateSpendingShare("10.00", "0.00"), null);
+  assert.equal(calculateSpendingShare("10.00", "-100.00"), null);
 });

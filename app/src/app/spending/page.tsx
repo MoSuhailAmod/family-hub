@@ -19,6 +19,8 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   calculatePeriodComparison,
+  calculateSpendingShare,
+  compareDecimalStrings,
   filterSpendingTransactions,
   loadSpendingCategoryTransactions,
   loadSpendingDashboard,
@@ -195,8 +197,30 @@ export default function SpendingPage() {
       ),
     }))
     .filter((entry): entry is { period: SpendingPeriod; category: SpendingHistoryEntry["categories"][number] } => Boolean(entry.category));
-  const topCategories = [...categories].sort((left, right) => Number(right.total) - Number(left.total)).slice(0, 5);
-  const largestCategoryTotal = Math.max(0, ...topCategories.map((category) => Number(category.total)));
+  const topCategories = [...categories].sort((left, right) => compareDecimalStrings(right.total, left.total)).slice(0, 5);
+  const categoryShare = (category: SpendingCategory) => calculateSpendingShare(category.total, period?.total ?? "0");
+  const categoryShareLabel = (category: SpendingCategory) => {
+    const share = categoryShare(category);
+    return share === null ? "—" : `${share}%`;
+  };
+  const categoryRing = categories.reduce(
+    ({ segments, offset }, category, index) => {
+      const share = categoryShare(category);
+      if (share === null || compareDecimalStrings(share, "0") <= 0 || offset >= 100) return { segments, offset };
+      const boundedShare = compareDecimalStrings(share, "100") > 0 ? 100 : Number(share);
+      const nextOffset = Math.min(100, offset + boundedShare);
+      const color = `var(--spending-category-color-${index % 5})`;
+      return {
+        segments: [...segments, `${color} ${offset}% ${nextOffset}%`],
+        offset: nextOffset,
+      };
+    },
+    { segments: [] as string[], offset: 0 },
+  );
+  const categoryRingGradient = [
+    ...categoryRing.segments,
+    ...(categoryRing.offset < 100 ? [`var(--surface-soft) ${categoryRing.offset}% 100%`] : []),
+  ].join(", ");
   const selectedPeriodIndex = period ? periods.findIndex((candidate) => periodId(candidate) === periodId(period)) : -1;
   const previousNavigationPeriod = selectedPeriodIndex >= 0 ? periods[selectedPeriodIndex + 1] : undefined;
   const nextNavigationPeriod = selectedPeriodIndex > 0 ? periods[selectedPeriodIndex - 1] : undefined;
@@ -489,43 +513,80 @@ export default function SpendingPage() {
             <p className="spending-history-note">History compares stored completed periods; current partial periods are labeled as in progress.</p>
           </section>
 
-          <section className="spending-categories" aria-labelledby="spending-categories-heading">
-            <div className="spending-section-heading">
-              <div>
-                <p className="section-label">Breakdown</p>
-                <h2 id="spending-categories-heading">Categories</h2>
+          <section className="spending-category-overview" aria-label="Category spending overview">
+            <section className="spending-categories" aria-labelledby="spending-categories-heading">
+              <div className="spending-section-heading">
+                <div>
+                  <p className="section-label">Breakdown</p>
+                  <h2 id="spending-categories-heading">Spending by category</h2>
+                </div>
+                <span>{categories.length} {categories.length === 1 ? "category" : "categories"}</span>
               </div>
-              <span>{categories.length} {categories.length === 1 ? "category" : "categories"}</span>
-            </div>
-            {categories.length === 0 ? (
-              <p className="spending-no-categories">No category totals were provided for this period.</p>
-            ) : (
-              <>
-                <ol className="spending-category-chart" aria-label="Top spending categories">
-                  {topCategories.map((category) => <li key={category.sourceCategoryKey}><span>{category.name}</span><div aria-hidden="true"><i style={{ width: `${largestCategoryTotal ? Math.max(4, (Number(category.total) / largestCategoryTotal) * 100) : 0}%` }} /></div><strong>{amount(period.currency, category.total)}</strong></li>)}
-                </ol>
-                <ul className="spending-category-grid">
-                {categories.map((category) => (
-                  <li key={category.sourceCategoryKey}>
-                    <button
-                      type="button"
-                      className="spending-category-card"
-                      onClick={() => void openCategory(category)}
+              {categories.length === 0 ? (
+                <p className="spending-no-categories">No category totals were provided for this period.</p>
+              ) : (
+                <div className="spending-category-breakdown">
+                  <div className="spending-category-ring-wrap">
+                    <div
+                      className="spending-category-ring"
+                      aria-label="Spending by category"
+                      role="img"
+                      style={{ background: categoryRingGradient ? `conic-gradient(${categoryRingGradient})` : "var(--surface-soft)" }}
                     >
-                      <span>{category.name}</span>
-                      <strong>{amount(period.currency, category.total)}</strong>
-                    </button>
-                  </li>
-                ))}
-                </ul>
-              </>
-            )}
+                      <div>
+                        <span>Total spend</span>
+                        <strong>{amount(period.currency, period.total)}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <ul className="spending-category-legend">
+                    {categories.map((category, index) => (
+                      <li key={category.sourceCategoryKey}>
+                        <button type="button" onClick={() => void openCategory(category)}>
+                          <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 5})` }} />
+                          <span>{category.name}</span>
+                          <strong>{categoryShareLabel(category)}</strong>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </section>
+
+            <section className="spending-top-categories" aria-labelledby="spending-top-categories-heading">
+              <div className="spending-section-heading">
+                <div>
+                  <p className="section-label">Largest shares</p>
+                  <h2 id="spending-top-categories-heading">Top categories</h2>
+                </div>
+              </div>
+              {topCategories.length === 0 ? (
+                <p className="spending-no-categories">No category totals were provided for this period.</p>
+              ) : (
+                <ol>
+                  {topCategories.map((category) => (
+                    <li key={category.sourceCategoryKey}>
+                      <button type="button" onClick={() => void openCategory(category)}>
+                        <span>{category.name}</span>
+                        <strong>{amount(period.currency, category.total)}</strong>
+                        <small>{categoryShareLabel(category)} of total spend</small>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
           </section>
 
           <section className="spending-recent" aria-labelledby="spending-recent-heading">
             <div className="spending-section-heading"><div><p className="section-label">Recent activity</p><h2 id="spending-recent-heading">Recent transactions</h2></div></div>
             {recentTransactions.length === 0 ? <p className="spending-no-categories">No dated transactions were provided for this period.</p> : (
-              <ul>{recentTransactions.map((transaction) => <li key={transaction.sourceTransactionKey}><span><strong>{transaction.description}</strong><small>{transaction.date}</small></span><strong>{amount(period.currency, transaction.amount)}</strong></li>)}</ul>
+              <ul>{recentTransactions.map((transaction) => <li key={transaction.sourceTransactionKey}>
+                <span className={`spending-recent-transaction-icon is-${transaction.lineType ?? "transaction"}`} aria-hidden="true"><ReceiptText size={16} /></span>
+                <span className="spending-recent-transaction-content"><strong>{transaction.description}</strong><small>{transaction.date ?? "Undated imported line"}</small></span>
+                <strong>{amount(period.currency, transaction.amount)}</strong>
+              </li>)}</ul>
             )}
           </section>
         </>
