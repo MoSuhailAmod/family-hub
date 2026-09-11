@@ -51,7 +51,14 @@ function periodMonthLabel(period: SpendingPeriod) {
 }
 
 function amount(currency: string, total: string) {
-  return `${currency} ${total}`;
+  const value = Number(total);
+
+  const formatted = new Intl.NumberFormat("en-ZA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
+  return currency === "ZAR" ? `R ${formatted}` : `${currency} ${formatted}`;
 }
 
 function categoryId(
