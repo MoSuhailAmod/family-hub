@@ -46,7 +46,7 @@ function periodLabel(period: SpendingPeriod) {
 
 function periodMonthLabel(period: SpendingPeriod) {
   return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(
-    new Date(`${period.startDate}T12:00:00`),
+    new Date(`${period.startDate.slice(0, 10)}T12:00:00`),
   );
 }
 
@@ -537,7 +537,7 @@ export default function SpendingPage() {
                           className={`spending-history-bar${selected ? " is-selected" : ""}`}
                           style={{ height: `${height}%` }}
                         />
-                        <span className="spending-history-month" aria-hidden="true">{new Intl.DateTimeFormat(undefined, { month: "short" }).format(new Date(`${entry.period.startDate}T12:00:00`))}</span>
+                        <span className="spending-history-month" aria-hidden="true">{new Intl.DateTimeFormat(undefined, { month: "short" }).format(new Date(`${entry.period.startDate.slice(0, 10)}T12:00:00`))}</span>
                       </div>
                     );
                   })}
