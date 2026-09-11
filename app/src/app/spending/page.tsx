@@ -197,6 +197,17 @@ export default function SpendingPage() {
       ),
     }))
     .filter((entry): entry is { period: SpendingPeriod; category: SpendingHistoryEntry["categories"][number] } => Boolean(entry.category));
+  const chartHistory = period
+    ? history
+      .filter((entry) =>
+        entry.period.status !== "partial" &&
+        entry.period.sourceProducer === period.sourceProducer &&
+        entry.period.currency === period.currency,
+      )
+      .slice(0, 6)
+      .reverse()
+    : [];
+  const maxChartTotal = Math.max(0, ...chartHistory.map((entry) => Number(entry.period.total)));
   const topCategories = [...categories].sort((left, right) => compareDecimalStrings(right.total, left.total)).slice(0, 5);
   const categoryShare = (category: SpendingCategory) => calculateSpendingShare(category.total, period?.total ?? "0");
   const categoryShareLabel = (category: SpendingCategory) => {
@@ -409,110 +420,6 @@ export default function SpendingPage() {
             </div>
           </section>
 
-          {partialPeriod && periodId(partialPeriod) !== periodId(period) && (
-            <button type="button" className="spending-partial-banner" onClick={() => void load(partialPeriod)}>
-              <span className="spending-partial-banner-icon" aria-hidden="true"><Clock3 size={19} /></span>
-              <span><strong>Current period available</strong><small>{periodLabel(partialPeriod)} · Partial / in progress</small></span>
-              <span>View current spending <ChevronRight size={16} /></span>
-            </button>
-          )}
-
-          <section className="spending-history" aria-labelledby="spending-history-heading">
-            <div className="spending-section-heading">
-              <div>
-                <p className="section-label">History</p>
-                <h2 id="spending-history-heading">Trends and comparison</h2>
-              </div>
-              <label className="spending-history-view">
-                <span className="sr-only">Historical reporting view</span>
-                <select
-                  aria-label="Historical reporting view"
-                  value={historyView}
-                  disabled={historyLoading}
-                  onChange={(event) => {
-                    const view = event.target.value as SpendingHistoryView;
-                    setHistoryView(view);
-                    void loadHistory(view);
-                  }}
-                >
-                  <option value="raw">Source categories</option>
-                  <option value="normalized">Reporting groups</option>
-                </select>
-              </label>
-            </div>
-            {historyLoading ? (
-              <p className="spending-history-state" aria-live="polite">Loading spending history…</p>
-            ) : historyLoadFailed ? (
-              <div className="spending-history-state" role="alert">
-                <strong>Historical spending is unavailable</strong>
-                <button type="button" className="secondary-button" onClick={() => void loadHistory(historyView)}>
-                  <RotateCcw size={16} /> Try again
-                </button>
-              </div>
-            ) : history.length < 2 ? (
-              <p className="spending-history-state">More completed periods will appear here as they become available.</p>
-            ) : (
-              <div className="spending-history-content">
-                <div className="spending-comparison-card">
-                  <p className="section-label">Compared with previous period</p>
-                  {comparison && previousPeriod ? (
-                    <>
-                      <strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>
-                        {signedAmount(period.currency, comparison.absoluteChange)}
-                      </strong>
-                      <p>
-                        {comparison.percentageChange === null
-                          ? `Previous total was zero (${periodLabel(previousPeriod)}).`
-                          : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}% from ${periodLabel(previousPeriod)}.`}
-                      </p>
-                    </>
-                  ) : (
-                    <p>No comparable earlier period is available for this source and currency.</p>
-                  )}
-                </div>
-
-                <div className="spending-trend-table-wrap">
-                  <table className="spending-trend-table">
-                    <caption>Total spending by imported period</caption>
-                    <thead><tr><th scope="col">Period</th><th scope="col">Total</th></tr></thead>
-                    <tbody>{history.map((entry) => (
-                      <tr key={periodId(entry.period)} className={period && periodId(entry.period) === periodId(period) ? "is-selected" : undefined}>
-                        <td>{periodLabel(entry.period)}</td><td>{amount(entry.period.currency, entry.period.total)}</td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-
-                {selectedHistory && (
-                  <div className="spending-history-categories">
-                    <h3>{historyView === "raw" ? "Source category totals" : "Reporting group totals"}</h3>
-                    <p>{periodLabel(selectedHistory.period)} — original source values remain available in Source categories.</p>
-                    <ul className="spending-history-category-list">
-                      {selectedHistory.categories.map((category) => (
-                        <li key={categoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {availableHistoryCategories.length > 0 && (
-                  <div className="spending-category-trend">
-                    <label>
-                      <span>Category trend</span>
-                      <select aria-label="Select category trend" value={selectedHistoryCategory} onChange={(event) => setSelectedHistoryCategory(event.target.value)}>
-                        {availableHistoryCategories.map(([id, category]) => <option key={id} value={id}>{category.name}</option>)}
-                      </select>
-                    </label>
-                    <ul>{categoryTrend.map(({ period: trendPeriod, category }) => (
-                      <li key={periodId(trendPeriod)}><span>{periodLabel(trendPeriod)}</span><strong>{amount(trendPeriod.currency, category.total)}</strong></li>
-                    ))}</ul>
-                  </div>
-                )}
-              </div>
-            )}
-            <p className="spending-history-note">History compares stored completed periods; current partial periods are labeled as in progress.</p>
-          </section>
-
           <section className="spending-category-overview" aria-label="Category spending overview">
             <section className="spending-categories" aria-labelledby="spending-categories-heading">
               <div className="spending-section-heading">
@@ -579,15 +486,96 @@ export default function SpendingPage() {
             </section>
           </section>
 
-          <section className="spending-recent" aria-labelledby="spending-recent-heading">
-            <div className="spending-section-heading"><div><p className="section-label">Recent activity</p><h2 id="spending-recent-heading">Recent transactions</h2></div></div>
-            {recentTransactions.length === 0 ? <p className="spending-no-categories">No dated transactions were provided for this period.</p> : (
-              <ul>{recentTransactions.map((transaction) => <li key={transaction.sourceTransactionKey}>
-                <span className={`spending-recent-transaction-icon is-${transaction.lineType ?? "transaction"}`} aria-hidden="true"><ReceiptText size={16} /></span>
-                <span className="spending-recent-transaction-content"><strong>{transaction.description}</strong><small>{transaction.date ?? "Undated imported line"}</small></span>
-                <strong>{amount(period.currency, transaction.amount)}</strong>
-              </li>)}</ul>
-            )}
+          {partialPeriod && periodId(partialPeriod) !== periodId(period) && (
+            <button type="button" className="spending-partial-banner" onClick={() => void load(partialPeriod)}>
+              <span className="spending-partial-banner-icon" aria-hidden="true"><Clock3 size={19} /></span>
+              <span><strong>Current period available</strong><small>{periodLabel(partialPeriod)} · Partial / in progress</small></span>
+              <span>View current spending <ChevronRight size={16} /></span>
+            </button>
+          )}
+
+          <section className="spending-dashboard-lower-row" aria-label="Spending activity and history">
+            <section className="spending-recent" aria-labelledby="spending-recent-heading">
+              <div className="spending-section-heading"><div><p className="section-label">Recent activity</p><h2 id="spending-recent-heading">Recent transactions</h2></div></div>
+              {recentTransactions.length === 0 ? <p className="spending-no-categories">No dated transactions were provided for this period.</p> : (
+                <ul>{recentTransactions.map((transaction) => <li key={transaction.sourceTransactionKey}>
+                  <span className={`spending-recent-transaction-icon is-${transaction.lineType ?? "transaction"}`} aria-hidden="true"><ReceiptText size={16} /></span>
+                  <span className="spending-recent-transaction-content"><strong>{transaction.description}</strong><small>{transaction.date ?? "Undated imported line"}</small></span>
+                  <strong>{amount(period.currency, transaction.amount)}</strong>
+                </li>)}</ul>
+              )}
+            </section>
+
+            <section className="spending-history" aria-labelledby="spending-history-heading">
+              <div className="spending-section-heading">
+                <div>
+                  <p className="section-label">History</p>
+                  <h2 id="spending-history-heading">Spending history</h2>
+                </div>
+              </div>
+              {historyLoading ? (
+                <p className="spending-history-state" aria-live="polite">Loading spending history…</p>
+              ) : historyLoadFailed ? (
+                <div className="spending-history-state" role="alert">
+                  <strong>Historical spending is unavailable</strong>
+                  <button type="button" className="secondary-button" onClick={() => void loadHistory(historyView)}>
+                    <RotateCcw size={16} /> Try again
+                  </button>
+                </div>
+              ) : chartHistory.length < 2 ? (
+                <p className="spending-history-state">More completed periods will appear here as they become available.</p>
+              ) : (
+                <div className="spending-history-chart" role="list" aria-label="Total spending by period">
+                  {chartHistory.map((entry) => {
+                    const selected = periodId(entry.period) === periodId(period);
+                    const height = maxChartTotal > 0 ? Math.max(12, (Number(entry.period.total) / maxChartTotal) * 100) : 12;
+                    return (
+                      <div className="spending-history-chart-item" key={periodId(entry.period)} role="listitem">
+                        <span className="sr-only">{`${periodMonthLabel(entry.period)}: ${amount(entry.period.currency, entry.period.total)}`}</span>
+                        <span
+                          aria-hidden="true"
+                          className={`spending-history-bar${selected ? " is-selected" : ""}`}
+                          style={{ height: `${height}%` }}
+                        />
+                        <span className="spending-history-month" aria-hidden="true">{new Intl.DateTimeFormat(undefined, { month: "short" }).format(new Date(`${entry.period.startDate}T12:00:00`))}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <details className="spending-history-details">
+                <summary>View detailed history</summary>
+                <div className="spending-history-details-content">
+                  <div className="spending-history-detail-controls">
+                    <div className="spending-comparison-card">
+                      <p className="section-label">Compared with previous period</p>
+                      {comparison && previousPeriod ? (
+                        <><strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{signedAmount(period.currency, comparison.absoluteChange)}</strong><p>{comparison.percentageChange === null ? `Previous total was zero (${periodLabel(previousPeriod)}).` : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}% from ${periodLabel(previousPeriod)}.`}</p></>
+                      ) : <p>No comparable earlier period is available for this source and currency.</p>}
+                    </div>
+                    <label className="spending-history-view">
+                      <span>Historical reporting view</span>
+                      <select aria-label="Historical reporting view" value={historyView} disabled={historyLoading} onChange={(event) => { const view = event.target.value as SpendingHistoryView; setHistoryView(view); void loadHistory(view); }}>
+                        <option value="raw">Source categories</option>
+                        <option value="normalized">Reporting groups</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="spending-history-period-list">
+                    <h3>Imported period totals</h3>
+                    <ul>
+                      {history.filter((entry) => entry.period.sourceProducer === period.sourceProducer && entry.period.currency === period.currency).map((entry) => (
+                        <li key={periodId(entry.period)} className={periodId(entry.period) === periodId(period) ? "is-selected" : undefined}>
+                          <span>{periodLabel(entry.period)}</span><strong>{amount(entry.period.currency, entry.period.total)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {selectedHistory && <div className="spending-history-categories"><h3>{historyView === "raw" ? "Source category totals" : "Reporting group totals"}</h3><p>{periodLabel(selectedHistory.period)} — original source values remain available in Source categories.</p><ul className="spending-history-category-list">{selectedHistory.categories.map((category) => <li key={categoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>)}</ul></div>}
+                  {availableHistoryCategories.length > 0 && <div className="spending-category-trend"><label><span>Category trend</span><select aria-label="Select category trend" value={selectedHistoryCategory} onChange={(event) => setSelectedHistoryCategory(event.target.value)}>{availableHistoryCategories.map(([id, category]) => <option key={id} value={id}>{category.name}</option>)}</select></label><ul>{categoryTrend.map(({ period: trendPeriod, category }) => <li key={periodId(trendPeriod)}><span>{periodLabel(trendPeriod)}</span><strong>{amount(trendPeriod.currency, category.total)}</strong></li>)}</ul></div>}
+                </div>
+              </details>
+            </section>
           </section>
         </>
       )}
