@@ -35,3 +35,23 @@ test("Spending dashboard uses the approved V2 header subtitle", async () => {
   assert.match(page, /Track and understand your household spending\./);
   assert.doesNotMatch(page, /Review household spending at a glance\./);
 });
+
+test("Spending dashboard renders dynamic category cards with an accessible ring breakdown", async () => {
+  const page = await readFile(pagePath, "utf8");
+
+  assert.match(page, /spending-category-overview/);
+  assert.match(page, /spending-category-ring/);
+  assert.match(page, /aria-label="Spending by category"/);
+  assert.match(page, /categoryShare/);
+  assert.match(page, /spending-top-categories/);
+  assert.match(page, /Top categories/);
+  assert.match(page, /onClick=\{\(\) => void openCategory\(category\)\}/);
+});
+
+test("Spending dashboard renders recent transactions as compact source-aware rows", async () => {
+  const page = await readFile(pagePath, "utf8");
+
+  assert.match(page, /spending-recent-transaction-icon/);
+  assert.match(page, /spending-recent-transaction-content/);
+  assert.match(page, /transaction\.lineType/);
+});

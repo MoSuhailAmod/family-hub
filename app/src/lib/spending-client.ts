@@ -155,6 +155,18 @@ function scaledIntegerToDecimal(value: bigint, scale: number) {
   return `${negative ? "-" : ""}${integer}${fraction ? `.${fraction}` : ""}`;
 }
 
+export function calculateSpendingShare(value: string, total: string): string | null {
+  const scale = Math.max(decimalParts(value).fraction.length, decimalParts(total).fraction.length);
+  const scaledTotal = decimalToScaledInteger(total, scale);
+  if (scaledTotal <= BigInt(0)) return null;
+
+  const percentageScale = 1;
+  const numerator = decimalToScaledInteger(value, scale) * BigInt(100 * 10 ** percentageScale);
+  const absoluteNumerator = numerator < BigInt(0) ? -numerator : numerator;
+  const rounded = (absoluteNumerator + scaledTotal / BigInt(2)) / scaledTotal;
+  return scaledIntegerToDecimal(numerator < BigInt(0) ? -rounded : rounded, percentageScale);
+}
+
 export function calculatePeriodComparison(
   selectedPeriod: SpendingPeriod,
   previousPeriod: SpendingPeriod | null,
@@ -185,7 +197,7 @@ export function calculatePeriodComparison(
   };
 }
 
-function compareDecimalStrings(a: string, b: string) {
+export function compareDecimalStrings(a: string, b: string) {
   const parse = (value: string) => {
     const negative = value.startsWith("-");
     const unsigned = value.replace(/^[+-]/, "");
