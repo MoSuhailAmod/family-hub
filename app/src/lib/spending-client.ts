@@ -6,6 +6,8 @@ export type SpendingPeriod = {
   currency: string;
   total: string;
   status?: "partial" | "completed";
+  sourceRevision?: string;
+  sourceIssuedAt?: string;
   importedAt?: string;
 };
 
@@ -160,7 +162,7 @@ export function calculateSpendingShare(value: string, total: string): string | n
   const scaledTotal = decimalToScaledInteger(total, scale);
   if (scaledTotal <= BigInt(0)) return null;
 
-  const percentageScale = 1;
+  const percentageScale = 2;
   const numerator = decimalToScaledInteger(value, scale) * BigInt(100 * 10 ** percentageScale);
   const absoluteNumerator = numerator < BigInt(0) ? -numerator : numerator;
   const rounded = (absoluteNumerator + scaledTotal / BigInt(2)) / scaledTotal;

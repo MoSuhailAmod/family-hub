@@ -218,7 +218,7 @@ export default function SpendingPage() {
       if (share === null || compareDecimalStrings(share, "0") <= 0 || offset >= 100) return { segments, offset };
       const boundedShare = compareDecimalStrings(share, "100") > 0 ? 100 : Number(share);
       const nextOffset = Math.min(100, offset + boundedShare);
-      const color = `var(--spending-category-color-${index % 5})`;
+      const color = `var(--spending-category-color-${index % 8})`;
       return {
         segments: [...segments, `${color} ${offset}% ${nextOffset}%`],
         offset: nextOffset,
@@ -368,6 +368,9 @@ export default function SpendingPage() {
               <div>
                 <p className="spending-period-dates">{periodLabel(period)}</p>
                 {period.importedAt && <p className="spending-freshness">Last synced {new Date(period.importedAt).toLocaleDateString()} via agent import</p>}
+                {period.sourceRevision && period.sourceIssuedAt && (
+                  <p className="spending-freshness">Report revision {period.sourceRevision}, generated {new Date(period.sourceIssuedAt).toLocaleDateString()}</p>
+                )}
               </div>
               <div className="spending-period-controls" aria-label="Spending period navigation">
                 <button type="button" aria-label="Previous spending period" title="Previous spending period" disabled={!previousNavigationPeriod || loading} onClick={() => previousNavigationPeriod && void load(previousNavigationPeriod)}>
@@ -422,7 +425,7 @@ export default function SpendingPage() {
                     {categories.map((category, index) => (
                       <li key={category.sourceCategoryKey}>
                         <button type="button" onClick={() => void openCategory(category)}>
-                          <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 5})` }} />
+                          <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 8})` }} />
                           <span>{category.name}</span>
                           <strong>{categoryShareLabel(category)}</strong>
                         </button>
@@ -530,7 +533,7 @@ export default function SpendingPage() {
                     <ul>
                       {history.filter((entry) => entry.period.sourceProducer === period.sourceProducer && entry.period.currency === period.currency).map((entry) => (
                         <li key={periodId(entry.period)} className={periodId(entry.period) === periodId(period) ? "is-selected" : undefined}>
-                          <span>{periodLabel(entry.period)}</span><strong>{amount(entry.period.currency, entry.period.total)}</strong>
+                          <span>{periodLabel(entry.period)}{entry.period.status === "partial" && <em className="spending-partial-flag">Partial</em>}</span><strong>{amount(entry.period.currency, entry.period.total)}</strong>
                         </li>
                       ))}
                     </ul>
