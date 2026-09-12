@@ -11,8 +11,6 @@ import {
   Clock3,
   ReceiptText,
   RotateCcw,
-  Tags,
-  TrendingUp,
   WalletCards,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -32,7 +30,6 @@ import {
   type SpendingHistoryView,
   type SpendingPeriod,
   type SpendingTransaction,
-  type SpendingTransactionLineType,
   type SpendingTransactionSort,
 } from "@/lib/spending-client";
 
@@ -81,9 +78,7 @@ export default function SpendingPage() {
   const [periods, setPeriods] = useState<SpendingPeriod[]>([]);
   const [period, setPeriod] = useState<SpendingPeriod | null>(null);
   const [categories, setCategories] = useState<SpendingCategory[]>([]);
-  const [transactionCount, setTransactionCount] = useState(0);
   const [recentTransactions, setRecentTransactions] = useState<SpendingTransaction[]>([]);
-  const [partialPeriod, setPartialPeriod] = useState<SpendingPeriod | null>(null);
   const [history, setHistory] = useState<SpendingHistoryEntry[]>([]);
   const [historyView, setHistoryView] = useState<SpendingHistoryView>("raw");
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -93,7 +88,6 @@ export default function SpendingPage() {
   const [transactions, setTransactions] = useState<SpendingTransaction[]>([]);
   const [transactionSort, setTransactionSort] = useState<SpendingTransactionSort>("date");
   const [transactionQuery, setTransactionQuery] = useState("");
-  const [transactionLineType, setTransactionLineType] = useState<SpendingTransactionLineType>("all");
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -114,9 +108,7 @@ export default function SpendingPage() {
       setPeriods(dashboard.periods);
       setPeriod(dashboard.period);
       setCategories(dashboard.categories);
-      setTransactionCount(dashboard.transactionCount);
       setRecentTransactions(dashboard.recentTransactions);
-      setPartialPeriod(dashboard.partialPeriod);
       setLoadFailed(false);
     } catch (error) {
       console.error(error);
@@ -162,7 +154,6 @@ export default function SpendingPage() {
     setTransactions([]);
     setTransactionSort("date");
     setTransactionQuery("");
-    setTransactionLineType("all");
     setDetailLoading(true);
     setDetailLoadFailed(false);
     try {
@@ -227,7 +218,7 @@ export default function SpendingPage() {
       if (share === null || compareDecimalStrings(share, "0") <= 0 || offset >= 100) return { segments, offset };
       const boundedShare = compareDecimalStrings(share, "100") > 0 ? 100 : Number(share);
       const nextOffset = Math.min(100, offset + boundedShare);
-      const color = `var(--spending-category-color-${index % 5})`;
+      const color = `var(--spending-category-color-${index % 8})`;
       return {
         segments: [...segments, `${color} ${offset}% ${nextOffset}%`],
         offset: nextOffset,
@@ -321,15 +312,6 @@ export default function SpendingPage() {
                   <input type="search" value={transactionQuery} onChange={(event) => setTransactionQuery(event.target.value)} placeholder="Search imported lines" />
                 </label>
                 <label>
-                  <span>Line type</span>
-                  <select aria-label="Filter category source lines by type" value={transactionLineType} onChange={(event) => setTransactionLineType(event.target.value as SpendingTransactionLineType)}>
-                    <option value="all">All source lines</option>
-                    <option value="transaction">Transactions</option>
-                    <option value="assumption">Assumptions</option>
-                    <option value="adjustment">Adjustments</option>
-                  </select>
-                </label>
-                <label>
                   <span>Sort by</span>
                   <select aria-label="Sort category transactions" value={transactionSort} onChange={(event) => setTransactionSort(event.target.value as SpendingTransactionSort)}>
                     <option value="date">Transaction date (oldest first)</option>
@@ -345,16 +327,14 @@ export default function SpendingPage() {
                     <tr>
                       <th scope="col">Date</th>
                       <th scope="col">Description</th>
-                      <th scope="col">Source line type</th>
                       <th scope="col">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortSpendingTransactions(filterSpendingTransactions(transactions, transactionQuery, transactionLineType), transactionSort).map((transaction) => (
+                    {sortSpendingTransactions(filterSpendingTransactions(transactions, transactionQuery, "all"), transactionSort).map((transaction) => (
                       <tr key={transaction.sourceTransactionKey}>
                         <td>{transaction.date ?? "—"}</td>
                         <td>{transaction.description}</td>
-                        <td>{transaction.lineType ?? "transaction"}</td>
                         <td>{amount(period.currency, transaction.amount)}</td>
                       </tr>
                     ))}
@@ -388,6 +368,9 @@ export default function SpendingPage() {
               <div>
                 <p className="spending-period-dates">{periodLabel(period)}</p>
                 {period.importedAt && <p className="spending-freshness">Last synced {new Date(period.importedAt).toLocaleDateString()} via agent import</p>}
+                {period.sourceRevision && period.sourceIssuedAt && (
+                  <p className="spending-freshness">Report revision {period.sourceRevision}, generated {new Date(period.sourceIssuedAt).toLocaleDateString()}</p>
+                )}
               </div>
               <div className="spending-period-controls" aria-label="Spending period navigation">
                 <button type="button" aria-label="Previous spending period" title="Previous spending period" disabled={!previousNavigationPeriod || loading} onClick={() => previousNavigationPeriod && void load(previousNavigationPeriod)}>
@@ -409,21 +392,6 @@ export default function SpendingPage() {
                   <ChevronRight size={18} />
                 </button>
               </div>
-            </div>
-          </section>
-
-          <section className="spending-metrics" aria-label="Period summary">
-            <div className="spending-metric-card">
-              <span className="spending-metric-icon is-categories" aria-hidden="true"><Tags size={18} /></span>
-              <span>Categories</span><strong>{categories.length}</strong><small>in this period</small>
-            </div>
-            <div className="spending-metric-card">
-              <span className="spending-metric-icon is-transactions" aria-hidden="true"><ReceiptText size={18} /></span>
-              <span>Transactions</span><strong>{transactionCount}</strong><small>imported entries</small>
-            </div>
-            <div className="spending-metric-card">
-              <span className="spending-metric-icon is-change" aria-hidden="true"><TrendingUp size={18} /></span>
-              <span>Compared with prior completed period</span>{comparison ? <><strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{comparison.percentageChange === null ? "—" : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}%`}</strong><small>{signedAmount(period.currency, comparison.absoluteChange)}</small></> : <><strong>—</strong><small>No comparable period</small></>}
             </div>
           </section>
 
@@ -457,7 +425,7 @@ export default function SpendingPage() {
                     {categories.map((category, index) => (
                       <li key={category.sourceCategoryKey}>
                         <button type="button" onClick={() => void openCategory(category)}>
-                          <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 5})` }} />
+                          <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 8})` }} />
                           <span>{category.name}</span>
                           <strong>{categoryShareLabel(category)}</strong>
                         </button>
@@ -492,14 +460,6 @@ export default function SpendingPage() {
               )}
             </section>
           </section>
-
-          {partialPeriod && periodId(partialPeriod) !== periodId(period) && (
-            <button type="button" className="spending-partial-banner" onClick={() => void load(partialPeriod)}>
-              <span className="spending-partial-banner-icon" aria-hidden="true"><Clock3 size={19} /></span>
-              <span><strong>Current period available</strong><small>{periodLabel(partialPeriod)} · Partial / in progress</small></span>
-              <span>View current spending <ChevronRight size={16} /></span>
-            </button>
-          )}
 
           <section className="spending-dashboard-lower-row" aria-label="Spending activity and history">
             <section className="spending-recent" aria-labelledby="spending-recent-heading">
@@ -573,7 +533,7 @@ export default function SpendingPage() {
                     <ul>
                       {history.filter((entry) => entry.period.sourceProducer === period.sourceProducer && entry.period.currency === period.currency).map((entry) => (
                         <li key={periodId(entry.period)} className={periodId(entry.period) === periodId(period) ? "is-selected" : undefined}>
-                          <span>{periodLabel(entry.period)}</span><strong>{amount(entry.period.currency, entry.period.total)}</strong>
+                          <span>{periodLabel(entry.period)}{entry.period.status === "partial" && <em className="spending-partial-flag">Partial</em>}</span><strong>{amount(entry.period.currency, entry.period.total)}</strong>
                         </li>
                       ))}
                     </ul>
