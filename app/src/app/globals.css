@@ -2343,7 +2343,7 @@ a {
   .spending-top-categories ol, .spending-recent ul { padding-right: 16px; padding-left: 16px; }
 }
 
-.spending-dashboard-lower-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 16px; margin-top: 20px; }
+.spending-dashboard-lower-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 20px; }
 .spending-dashboard-lower-row .spending-top-categories, .spending-dashboard-lower-row .spending-recent { min-width: 0; margin-top: 0; }
 .spending-history-chart { display: grid; grid-template-columns: repeat(auto-fit, minmax(36px, 1fr)); align-items: end; gap: 10px; min-height: 168px; padding: 20px 22px 14px; }
 .spending-history-chart-item { display: grid; min-width: 0; height: 134px; grid-template-rows: 1fr auto; align-items: end; gap: 8px; text-align: center; }
