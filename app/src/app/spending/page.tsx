@@ -16,18 +16,15 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import {
-  calculatePeriodComparison,
   calculateSpendingShare,
   compareDecimalStrings,
   filterSpendingTransactions,
   loadSpendingCategoryTransactions,
   loadSpendingDashboard,
   loadSpendingHistory,
-  previousComparablePeriod,
   sortSpendingTransactions,
   type SpendingCategory,
   type SpendingHistoryEntry,
-  type SpendingHistoryView,
   type SpendingPeriod,
   type SpendingTransaction,
   type SpendingTransactionSort,
@@ -75,17 +72,12 @@ function categoryId(
   return `${sourceProducer}\u0000${categoryKey}`;
 }
 
-function signedAmount(currency: string, value: string) {
-  return `${value.startsWith("-") ? "−" : "+"}${amount(currency, value.replace(/^-/, ""))}`;
-}
-
 export default function SpendingPage() {
   const [periods, setPeriods] = useState<SpendingPeriod[]>([]);
   const [period, setPeriod] = useState<SpendingPeriod | null>(null);
   const [categories, setCategories] = useState<SpendingCategory[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<SpendingTransaction[]>([]);
   const [history, setHistory] = useState<SpendingHistoryEntry[]>([]);
-  const [historyView, setHistoryView] = useState<SpendingHistoryView>("raw");
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
   const [selectedHistoryCategory, setSelectedHistoryCategory] = useState("");
@@ -123,12 +115,12 @@ export default function SpendingPage() {
     }
   }
 
-  async function loadHistory(view: SpendingHistoryView) {
+  async function loadHistory() {
     const requestId = historyRequestId.current + 1;
     historyRequestId.current = requestId;
     setHistoryLoading(true);
     try {
-      const nextHistory = await loadSpendingHistory(fetch, view);
+      const nextHistory = await loadSpendingHistory(fetch, "raw");
       if (historyRequestId.current !== requestId) return;
       setHistory(nextHistory);
       setSelectedHistoryCategory((selected) =>
@@ -175,15 +167,13 @@ export default function SpendingPage() {
   useEffect(() => {
     void Promise.resolve().then(() => {
       void load();
-      void loadHistory("raw");
+      void loadHistory();
     });
   }, []);
 
   const selectedHistory = period
     ? history.find((entry) => periodId(entry.period) === periodId(period))
     : undefined;
-  const previousPeriod = period ? previousComparablePeriod(history, period) : null;
-  const comparison = period ? calculatePeriodComparison(period, previousPeriod) : null;
   const availableHistoryCategories = Array.from(
     new Map(
       history.flatMap((entry) => entry.categories.map((category) => [
@@ -487,7 +477,7 @@ export default function SpendingPage() {
               ) : historyLoadFailed ? (
                 <div className="spending-history-state" role="alert">
                   <strong>Historical spending is unavailable</strong>
-                  <button type="button" className="secondary-button" onClick={() => void loadHistory(historyView)}>
+                  <button type="button" className="secondary-button" onClick={() => void loadHistory()}>
                     <RotateCcw size={16} /> Try again
                   </button>
                 </div>
@@ -515,23 +505,8 @@ export default function SpendingPage() {
               <details className="spending-history-details">
                 <summary>View detailed history</summary>
                 <div className="spending-history-details-content">
-                  <div className="spending-history-detail-controls">
-                    <div className="spending-comparison-card">
-                      <p className="section-label">Compared with previous period</p>
-                      {comparison && previousPeriod ? (
-                        <><strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{signedAmount(period.currency, comparison.absoluteChange)}</strong><p>{comparison.percentageChange === null ? `Previous total was zero (${periodLabel(previousPeriod)}).` : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}% from ${periodLabel(previousPeriod)}.`}</p></>
-                      ) : <p>No comparable earlier period is available for this source and currency.</p>}
-                    </div>
-                    <label className="spending-history-view">
-                      <span>Historical reporting view</span>
-                      <select aria-label="Historical reporting view" value={historyView} disabled={historyLoading} onChange={(event) => { const view = event.target.value as SpendingHistoryView; setHistoryView(view); void loadHistory(view); }}>
-                        <option value="raw">Source categories</option>
-                        <option value="normalized">Reporting groups</option>
-                      </select>
-                    </label>
-                  </div>
                   <div className="spending-history-period-list">
-                    <h3>Imported period totals</h3>
+                    <h3>Period totals</h3>
                     <ul>
                       {history.filter((entry) => entry.period.sourceProducer === period.sourceProducer && entry.period.currency === period.currency).map((entry) => (
                         <li key={periodId(entry.period)} className={periodId(entry.period) === periodId(period) ? "is-selected" : undefined}>
@@ -540,8 +515,8 @@ export default function SpendingPage() {
                       ))}
                     </ul>
                   </div>
-                  {selectedHistory && <div className="spending-history-categories"><h3>{historyView === "raw" ? "Source category totals" : "Reporting group totals"}</h3><p>{periodLabel(selectedHistory.period)} — original source values remain available in Source categories.</p><ul className="spending-history-category-list">{selectedHistory.categories.map((category) => <li key={categoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>)}</ul></div>}
-                  {availableHistoryCategories.length > 0 && <div className="spending-category-trend"><label><span>Category trend</span><select aria-label="Select category trend" value={selectedHistoryCategory} onChange={(event) => setSelectedHistoryCategory(event.target.value)}>{availableHistoryCategories.map(([id, category]) => <option key={id} value={id}>{category.name}</option>)}</select></label><ul>{categoryTrend.map(({ period: trendPeriod, category }) => <li key={periodId(trendPeriod)}><span>{periodLabel(trendPeriod)}</span><strong>{amount(trendPeriod.currency, category.total)}</strong></li>)}</ul></div>}
+                  {selectedHistory && <div className="spending-history-categories"><h3>Source category totals</h3><p>{periodLabel(selectedHistory.period)}</p><ul className="spending-history-category-list">{selectedHistory.categories.map((category) => <li key={categoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>)}</ul></div>}
+                  {availableHistoryCategories.length > 0 && <div className="spending-category-trend"><div className="spending-category-trend-heading"><h3>Category trend</h3><select aria-label="Select category trend" value={selectedHistoryCategory} onChange={(event) => setSelectedHistoryCategory(event.target.value)}>{availableHistoryCategories.map(([id, category]) => <option key={id} value={id}>{category.name}</option>)}</select></div><ul>{categoryTrend.map(({ period: trendPeriod, category }) => <li key={periodId(trendPeriod)}><span>{periodLabel(trendPeriod)}</span><strong>{amount(trendPeriod.currency, category.total)}</strong></li>)}</ul></div>}
                 </div>
               </details>
             </section>
