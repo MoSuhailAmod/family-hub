@@ -1951,30 +1951,48 @@ a {
   padding: 22px;
 }
 
-.spending-category-ring-wrap { display: grid; place-items: center; }
+.spending-category-ring-wrap { position: relative; display: grid; place-items: center; width: min(100%, 360px); justify-self: center; }
 .spending-category-ring {
-  display: grid;
-  width: 70%;
+  display: block;
+  width: 100%;
   aspect-ratio: 1;
-  place-items: center;
-  border-radius: 50%;
 }
-.spending-category-ring > div {
+.spending-category-ring-track,
+.spending-category-ring-segment {
+  fill: none;
+  stroke-width: 20;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+.spending-category-ring-track { stroke: var(--surface-soft); }
+.spending-category-ring-segment {
+  cursor: pointer;
+  stroke-linecap: butt;
+  transition: opacity .15s ease, stroke-width .15s ease;
+}
+.spending-category-ring-segment:hover,
+.spending-category-ring-segment:focus-visible,
+.spending-category-ring-segment.is-active { stroke-width: 24; outline: none; }
+.spending-category-ring-wrap:has(.spending-category-ring-segment.is-active) .spending-category-ring-segment:not(.is-active) { opacity: .52; }
+.spending-category-ring-center {
+  position: absolute;
+  inset: 18%;
   display: grid;
-  width: 64%;
-  aspect-ratio: 1;
   place-content: center;
   padding: 12px;
   border-radius: 50%;
   background: var(--surface);
   text-align: center;
 }
-.spending-category-ring span { color: var(--text-muted); font-size: 14px; font-weight: 700; }
-.spending-category-ring strong { margin-top: 3px; overflow-wrap: anywhere; font-size: 20px; letter-spacing: -.03em; }
+.spending-category-ring-center span { color: var(--text-muted); font-size: 14px; font-weight: 700; }
+.spending-category-ring-center strong { margin-top: 3px; overflow-wrap: anywhere; font-size: 20px; letter-spacing: -.03em; }
+.spending-category-chart-tooltip { position: absolute; z-index: 1; bottom: 3%; left: 50%; width: max-content; max-width: calc(100% - 20px); display: grid; gap: 2px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: 12px; pointer-events: none; transform: translateX(-50%); }
+.spending-category-chart-tooltip span { color: var(--text-muted); }
 .spending-category-legend,
 .spending-top-categories ol { margin: 0; padding: 0; list-style: none; }
 .spending-category-legend { column-count: 2; column-gap: 24px; }
 .spending-category-legend li { break-inside: avoid; margin-bottom: 2px; }
+.spending-category-legend li.is-chart-active button { background: var(--surface-soft); }
 .spending-category-legend button,
 .spending-top-categories button {
   width: 100%;

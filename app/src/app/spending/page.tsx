@@ -82,6 +82,8 @@ export default function SpendingPage() {
   const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
   const [selectedHistoryCategory, setSelectedHistoryCategory] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<SpendingCategory | null>(null);
+  const [activeChartCategoryKey, setActiveChartCategoryKey] = useState<string | null>(null);
+  const [pinnedChartCategoryKey, setPinnedChartCategoryKey] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<SpendingTransaction[]>([]);
   const [transactionSort, setTransactionSort] = useState<SpendingTransactionSort>("date");
   const [transactionQuery, setTransactionQuery] = useState("");
@@ -92,6 +94,7 @@ export default function SpendingPage() {
   const detailRequestId = useRef(0);
   const overviewRequestId = useRef(0);
   const historyRequestId = useRef(0);
+  const categoryChartRef = useRef<HTMLDivElement>(null);
 
   async function load(selectedPeriod?: SpendingPeriod) {
     const requestId = overviewRequestId.current + 1;
@@ -99,6 +102,8 @@ export default function SpendingPage() {
     detailRequestId.current += 1;
     setLoading(true);
     setSelectedCategory(null);
+    setActiveChartCategoryKey(null);
+    setPinnedChartCategoryKey(null);
     try {
       const dashboard = await loadSpendingDashboard(fetch, selectedPeriod);
       if (overviewRequestId.current !== requestId) return;
@@ -171,6 +176,17 @@ export default function SpendingPage() {
     });
   }, []);
 
+  useEffect(() => {
+    function dismissChartDetail(event: PointerEvent) {
+      if (categoryChartRef.current && !categoryChartRef.current.contains(event.target as Node)) {
+        setPinnedChartCategoryKey(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", dismissChartDetail);
+    return () => document.removeEventListener("pointerdown", dismissChartDetail);
+  }, []);
+
   const selectedHistory = period
     ? history.find((entry) => periodId(entry.period) === periodId(period))
     : undefined;
@@ -208,24 +224,23 @@ export default function SpendingPage() {
     const share = categoryShare(category);
     return share === null ? "—" : `${share}%`;
   };
-  const categoryRing = sortedCategories.reduce(
+  const categoryRingSegments = sortedCategories.reduce(
     ({ segments, offset }, category, index) => {
       const share = categoryShare(category);
       if (share === null || compareDecimalStrings(share, "0") <= 0 || offset >= 100) return { segments, offset };
       const boundedShare = compareDecimalStrings(share, "100") > 0 ? 100 : Number(share);
       const nextOffset = Math.min(100, offset + boundedShare);
-      const color = `var(--spending-category-color-${index % 8})`;
       return {
-        segments: [...segments, `${color} ${offset}% ${nextOffset}%`],
+        segments: [...segments, { category, index, offset, share: nextOffset - offset }],
         offset: nextOffset,
       };
     },
-    { segments: [] as string[], offset: 0 },
+    { segments: [] as { category: SpendingCategory; index: number; offset: number; share: number }[], offset: 0 },
   );
-  const categoryRingGradient = [
-    ...categoryRing.segments,
-    ...(categoryRing.offset < 100 ? [`var(--surface-soft) ${categoryRing.offset}% 100%`] : []),
-  ].join(", ");
+  const displayedChartCategoryKey = pinnedChartCategoryKey ?? activeChartCategoryKey;
+  const displayedChartCategory = displayedChartCategoryKey
+    ? sortedCategories.find((category) => category.sourceCategoryKey === displayedChartCategoryKey)
+    : undefined;
   const selectedPeriodIndex = period ? periods.findIndex((candidate) => periodId(candidate) === periodId(period)) : -1;
   const previousNavigationPeriod = selectedPeriodIndex >= 0 ? periods[selectedPeriodIndex + 1] : undefined;
   const nextNavigationPeriod = selectedPeriodIndex > 0 ? periods[selectedPeriodIndex - 1] : undefined;
@@ -399,27 +414,69 @@ export default function SpendingPage() {
             {categories.length === 0 ? (
               <p className="spending-no-categories">No category totals were provided for this period.</p>
             ) : (
-              <div className="spending-category-breakdown">
+              <div className="spending-category-breakdown" ref={categoryChartRef}>
                 <div className="spending-category-ring-wrap">
-                  <div
+                  <svg
                     className="spending-category-ring"
+                    viewBox="0 0 100 100"
+                    role="group"
                     aria-label="Spending by category"
-                    role="img"
-                    style={{ background: categoryRingGradient ? `conic-gradient(${categoryRingGradient})` : "var(--surface-soft)" }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setPinnedChartCategoryKey(null);
+                    }}
                   >
-                    <div>
-                      <span>Total spend</span>
-                      <strong>{amount(period.currency, period.total)}</strong>
-                    </div>
+                    <circle className="spending-category-ring-track" cx="50" cy="50" r="40" pathLength="100" />
+                    {categoryRingSegments.segments.map(({ category, index, offset, share }) => {
+                      const isActive = category.sourceCategoryKey === displayedChartCategoryKey;
+                      return (
+                        <circle
+                          key={category.sourceCategoryKey}
+                          className={`spending-category-ring-segment${isActive ? " is-active" : ""}`}
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          pathLength="100"
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={pinnedChartCategoryKey === category.sourceCategoryKey}
+                          aria-describedby={isActive ? "spending-category-chart-detail" : undefined}
+                          aria-label={`${category.name}: ${amount(period.currency, category.total)}, ${categoryShareLabel(category)} of total spend`}
+                          stroke={`var(--spending-category-color-${index % 8})`}
+                          strokeDasharray={`${share} ${100 - share}`}
+                          strokeDashoffset={-offset}
+                          onMouseEnter={() => setActiveChartCategoryKey(category.sourceCategoryKey)}
+                          onMouseLeave={() => setActiveChartCategoryKey(null)}
+                          onFocus={() => setActiveChartCategoryKey(category.sourceCategoryKey)}
+                          onBlur={() => setActiveChartCategoryKey(null)}
+                          onClick={() => setPinnedChartCategoryKey((selected) => selected === category.sourceCategoryKey ? null : category.sourceCategoryKey)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setPinnedChartCategoryKey((selected) => selected === category.sourceCategoryKey ? null : category.sourceCategoryKey);
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                  </svg>
+                  <div className="spending-category-ring-center" aria-hidden="true">
+                    <span>Total spend</span>
+                    <strong>{amount(period.currency, period.total)}</strong>
                   </div>
+                  {displayedChartCategory && (
+                    <div id="spending-category-chart-detail" className="spending-category-chart-tooltip" role="tooltip">
+                      <strong>{displayedChartCategory.name}</strong>
+                      <span>{amount(period.currency, displayedChartCategory.total)} · {categoryShareLabel(displayedChartCategory)} of total spend</span>
+                    </div>
+                  )}
                 </div>
                 <ul className="spending-category-legend">
                   {sortedCategories.map((category, index) => (
-                    <li key={category.sourceCategoryKey}>
+                    <li key={category.sourceCategoryKey} className={category.sourceCategoryKey === displayedChartCategoryKey ? "is-chart-active" : undefined}>
                       <button type="button" onClick={() => void openCategory(category)}>
                         <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 8})` }} />
                         <span>{category.name}</span>
-                        <strong>{categoryShareLabel(category)}</strong>
+                        <strong>{amount(period.currency, category.total)}</strong>
                       </button>
                     </li>
                   ))}
