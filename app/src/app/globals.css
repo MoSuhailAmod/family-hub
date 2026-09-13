@@ -69,6 +69,18 @@ a {
   text-decoration: none;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .app-shell {
   min-height: 100vh;
 }
@@ -1896,7 +1908,7 @@ a {
   color: var(--accent);
 }
 
-.spending-category-overview {
+.spending-categories {
   --spending-category-color-0: #3987e5;
   --spending-category-color-1: #d95926;
   --spending-category-color-2: #199e70;
@@ -1905,9 +1917,6 @@ a {
   --spending-category-color-5: #008300;
   --spending-category-color-6: #9085e9;
   --spending-category-color-7: #e66767;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
-  gap: 16px;
   margin-top: 20px;
 }
 
@@ -1945,7 +1954,7 @@ a {
 .spending-category-ring-wrap { display: grid; place-items: center; }
 .spending-category-ring {
   display: grid;
-  width: min(100%, 184px);
+  width: 70%;
   aspect-ratio: 1;
   place-items: center;
   border-radius: 50%;
@@ -1960,11 +1969,12 @@ a {
   background: var(--surface);
   text-align: center;
 }
-.spending-category-ring span { color: var(--text-muted); font-size: 11px; font-weight: 700; }
-.spending-category-ring strong { margin-top: 3px; overflow-wrap: anywhere; font-size: 16px; letter-spacing: -.03em; }
+.spending-category-ring span { color: var(--text-muted); font-size: 14px; font-weight: 700; }
+.spending-category-ring strong { margin-top: 3px; overflow-wrap: anywhere; font-size: 20px; letter-spacing: -.03em; }
 .spending-category-legend,
 .spending-top-categories ol { margin: 0; padding: 0; list-style: none; }
-.spending-category-legend { display: grid; gap: 2px; }
+.spending-category-legend { column-count: 2; column-gap: 24px; }
+.spending-category-legend li { break-inside: avoid; margin-bottom: 2px; }
 .spending-category-legend button,
 .spending-top-categories button {
   width: 100%;
@@ -2324,13 +2334,13 @@ a {
   .spending-metric-card { padding: 16px; }
   .spending-partial-banner { grid-template-columns: auto 1fr; align-items: start; padding: 16px; }
   .spending-partial-banner > span:last-child { grid-column: 2; }
-  .spending-category-overview { grid-template-columns: 1fr; }
   .spending-category-breakdown { grid-template-columns: 1fr; gap: 18px; padding: 18px 16px; }
+  .spending-category-legend { column-count: 1; }
   .spending-top-categories ol, .spending-recent ul { padding-right: 16px; padding-left: 16px; }
 }
 
 .spending-dashboard-lower-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 16px; margin-top: 20px; }
-.spending-dashboard-lower-row .spending-recent, .spending-dashboard-lower-row .spending-history { min-width: 0; margin-top: 0; }
+.spending-dashboard-lower-row .spending-top-categories, .spending-dashboard-lower-row .spending-recent { min-width: 0; margin-top: 0; }
 .spending-history-chart { display: grid; grid-template-columns: repeat(auto-fit, minmax(36px, 1fr)); align-items: end; gap: 10px; min-height: 168px; padding: 20px 22px 14px; }
 .spending-history-chart-item { display: grid; min-width: 0; height: 134px; grid-template-rows: 1fr auto; align-items: end; gap: 8px; text-align: center; }
 .spending-history-bar { width: 100%; min-height: 12px; align-self: end; border-radius: 8px 8px 3px 3px; background: color-mix(in srgb, var(--accent) 38%, var(--accent-soft)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent); }
@@ -2350,10 +2360,6 @@ a {
 .spending-partial-flag { display: inline-flex; align-items: center; margin-left: 8px; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: 0.02em; text-transform: uppercase; }
 .spending-history-detail-controls { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
 .spending-history-view { display: grid; flex: 0 0 auto; gap: 7px; color: var(--text-muted); font-size: 12px; font-weight: 700; }
-
-@media (max-width: 760px) {
-  .spending-dashboard-lower-row { grid-template-columns: 1fr; }
-}
 
 @media (max-width: 620px) {
   .spending-history-chart { min-height: 152px; gap: 7px; padding-right: 16px; padding-left: 16px; }

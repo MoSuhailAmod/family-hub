@@ -37,8 +37,13 @@ function periodId(period: SpendingPeriod) {
   return `${period.sourceProducer}\u0000${period.sourcePeriodKey}`;
 }
 
+function formatDate(value: string) {
+  const date = value.length <= 10 ? new Date(`${value}T12:00:00`) : new Date(value);
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+}
+
 function periodLabel(period: SpendingPeriod) {
-  return `${period.startDate} – ${period.endDate}`;
+  return `${formatDate(period.startDate)} – ${formatDate(period.endDate)}`;
 }
 
 function periodMonthLabel(period: SpendingPeriod) {
@@ -206,13 +211,14 @@ export default function SpendingPage() {
       .reverse()
     : [];
   const maxChartTotal = Math.max(0, ...chartHistory.map((entry) => Number(entry.period.total)));
-  const topCategories = [...categories].sort((left, right) => compareDecimalStrings(right.total, left.total)).slice(0, 5);
+  const sortedCategories = [...categories].sort((left, right) => compareDecimalStrings(right.total, left.total));
+  const topCategories = sortedCategories.slice(0, 5);
   const categoryShare = (category: SpendingCategory) => calculateSpendingShare(category.total, period?.total ?? "0");
   const categoryShareLabel = (category: SpendingCategory) => {
     const share = categoryShare(category);
     return share === null ? "—" : `${share}%`;
   };
-  const categoryRing = categories.reduce(
+  const categoryRing = sortedCategories.reduce(
     ({ segments, offset }, category, index) => {
       const share = categoryShare(category);
       if (share === null || compareDecimalStrings(share, "0") <= 0 || offset >= 100) return { segments, offset };
@@ -333,7 +339,7 @@ export default function SpendingPage() {
                   <tbody>
                     {sortSpendingTransactions(filterSpendingTransactions(transactions, transactionQuery, "all"), transactionSort).map((transaction) => (
                       <tr key={transaction.sourceTransactionKey}>
-                        <td>{transaction.date ?? "—"}</td>
+                        <td>{transaction.date ? formatDate(transaction.date) : "—"}</td>
                         <td>{transaction.description}</td>
                         <td>{amount(period.currency, transaction.amount)}</td>
                       </tr>
@@ -367,10 +373,7 @@ export default function SpendingPage() {
             <div className="spending-period-hero-footer">
               <div>
                 <p className="spending-period-dates">{periodLabel(period)}</p>
-                {period.importedAt && <p className="spending-freshness">Last synced {new Date(period.importedAt).toLocaleDateString()} via agent import</p>}
-                {period.sourceRevision && period.sourceIssuedAt && (
-                  <p className="spending-freshness">Report revision {period.sourceRevision}, generated {new Date(period.sourceIssuedAt).toLocaleDateString()}</p>
-                )}
+                {period.importedAt && <p className="spending-freshness">Last synced {formatDate(period.importedAt)}</p>}
               </div>
               <div className="spending-period-controls" aria-label="Spending period navigation">
                 <button type="button" aria-label="Previous spending period" title="Previous spending period" disabled={!previousNavigationPeriod || loading} onClick={() => previousNavigationPeriod && void load(previousNavigationPeriod)}>
@@ -378,7 +381,7 @@ export default function SpendingPage() {
                 </button>
                 {periods.length > 0 && (
                   <label className="spending-period-picker">
-                    <span className="sr-only">Select spending period</span>
+                    <span className="sr-only">Spending period</span>
                     <select aria-label="Select spending period" value={periodId(period)} disabled={loading} onChange={(event) => {
                       const selected = periods.find((candidate) => periodId(candidate) === event.target.value);
                       if (selected) void load(selected);
@@ -395,47 +398,47 @@ export default function SpendingPage() {
             </div>
           </section>
 
-          <section className="spending-category-overview" aria-label="Category spending overview">
-            <section className="spending-categories" aria-labelledby="spending-categories-heading">
-              <div className="spending-section-heading">
-                <div>
-                  <p className="section-label">Breakdown</p>
-                  <h2 id="spending-categories-heading">Spending by category</h2>
-                </div>
-                <span>{categories.length} {categories.length === 1 ? "category" : "categories"}</span>
+          <section className="spending-categories" aria-labelledby="spending-categories-heading">
+            <div className="spending-section-heading">
+              <div>
+                <p className="section-label">Breakdown</p>
+                <h2 id="spending-categories-heading">Spending by category</h2>
               </div>
-              {categories.length === 0 ? (
-                <p className="spending-no-categories">No category totals were provided for this period.</p>
-              ) : (
-                <div className="spending-category-breakdown">
-                  <div className="spending-category-ring-wrap">
-                    <div
-                      className="spending-category-ring"
-                      aria-label="Spending by category"
-                      role="img"
-                      style={{ background: categoryRingGradient ? `conic-gradient(${categoryRingGradient})` : "var(--surface-soft)" }}
-                    >
-                      <div>
-                        <span>Total spend</span>
-                        <strong>{amount(period.currency, period.total)}</strong>
-                      </div>
+              <span>{categories.length} {categories.length === 1 ? "category" : "categories"}</span>
+            </div>
+            {categories.length === 0 ? (
+              <p className="spending-no-categories">No category totals were provided for this period.</p>
+            ) : (
+              <div className="spending-category-breakdown">
+                <div className="spending-category-ring-wrap">
+                  <div
+                    className="spending-category-ring"
+                    aria-label="Spending by category"
+                    role="img"
+                    style={{ background: categoryRingGradient ? `conic-gradient(${categoryRingGradient})` : "var(--surface-soft)" }}
+                  >
+                    <div>
+                      <span>Total spend</span>
+                      <strong>{amount(period.currency, period.total)}</strong>
                     </div>
                   </div>
-                  <ul className="spending-category-legend">
-                    {categories.map((category, index) => (
-                      <li key={category.sourceCategoryKey}>
-                        <button type="button" onClick={() => void openCategory(category)}>
-                          <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 8})` }} />
-                          <span>{category.name}</span>
-                          <strong>{categoryShareLabel(category)}</strong>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-              )}
-            </section>
+                <ul className="spending-category-legend">
+                  {sortedCategories.map((category, index) => (
+                    <li key={category.sourceCategoryKey}>
+                      <button type="button" onClick={() => void openCategory(category)}>
+                        <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 8})` }} />
+                        <span>{category.name}</span>
+                        <strong>{categoryShareLabel(category)}</strong>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
 
+          <section className="spending-dashboard-lower-row" aria-label="Top categories and recent activity">
             <section className="spending-top-categories" aria-labelledby="spending-top-categories-heading">
               <div className="spending-section-heading">
                 <div>
@@ -459,21 +462,20 @@ export default function SpendingPage() {
                 </ol>
               )}
             </section>
-          </section>
 
-          <section className="spending-dashboard-lower-row" aria-label="Spending activity and history">
             <section className="spending-recent" aria-labelledby="spending-recent-heading">
               <div className="spending-section-heading"><div><p className="section-label">Recent activity</p><h2 id="spending-recent-heading">Recent transactions</h2></div></div>
               {recentTransactions.length === 0 ? <p className="spending-no-categories">No dated transactions were provided for this period.</p> : (
                 <ul>{recentTransactions.map((transaction) => <li key={transaction.sourceTransactionKey}>
                   <span className={`spending-recent-transaction-icon is-${transaction.lineType ?? "transaction"}`} aria-hidden="true"><ReceiptText size={16} /></span>
-                  <span className="spending-recent-transaction-content"><strong>{transaction.description}</strong><small>{transaction.date ?? "Undated imported line"}</small></span>
+                  <span className="spending-recent-transaction-content"><strong>{transaction.description}</strong><small>{transaction.date ? formatDate(transaction.date) : "Undated imported line"}</small></span>
                   <strong>{amount(period.currency, transaction.amount)}</strong>
                 </li>)}</ul>
               )}
             </section>
+          </section>
 
-            <section className="spending-history" aria-labelledby="spending-history-heading">
+          <section className="spending-history" aria-labelledby="spending-history-heading">
               <div className="spending-section-heading">
                 <div>
                   <p className="section-label">History</p>
@@ -543,7 +545,6 @@ export default function SpendingPage() {
                 </div>
               </details>
             </section>
-          </section>
         </>
       )}
     </div>
