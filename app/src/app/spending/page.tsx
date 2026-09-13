@@ -16,18 +16,15 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import {
-  calculatePeriodComparison,
   calculateSpendingShare,
   compareDecimalStrings,
   filterSpendingTransactions,
   loadSpendingCategoryTransactions,
   loadSpendingDashboard,
   loadSpendingHistory,
-  previousComparablePeriod,
   sortSpendingTransactions,
   type SpendingCategory,
   type SpendingHistoryEntry,
-  type SpendingHistoryView,
   type SpendingPeriod,
   type SpendingTransaction,
   type SpendingTransactionSort,
@@ -37,8 +34,13 @@ function periodId(period: SpendingPeriod) {
   return `${period.sourceProducer}\u0000${period.sourcePeriodKey}`;
 }
 
+function formatDate(value: string) {
+  const date = value.length <= 10 ? new Date(`${value}T12:00:00`) : new Date(value);
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+}
+
 function periodLabel(period: SpendingPeriod) {
-  return `${period.startDate} – ${period.endDate}`;
+  return `${formatDate(period.startDate)} – ${formatDate(period.endDate)}`;
 }
 
 function periodMonthLabel(period: SpendingPeriod) {
@@ -70,17 +72,12 @@ function categoryId(
   return `${sourceProducer}\u0000${categoryKey}`;
 }
 
-function signedAmount(currency: string, value: string) {
-  return `${value.startsWith("-") ? "−" : "+"}${amount(currency, value.replace(/^-/, ""))}`;
-}
-
 export default function SpendingPage() {
   const [periods, setPeriods] = useState<SpendingPeriod[]>([]);
   const [period, setPeriod] = useState<SpendingPeriod | null>(null);
   const [categories, setCategories] = useState<SpendingCategory[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<SpendingTransaction[]>([]);
   const [history, setHistory] = useState<SpendingHistoryEntry[]>([]);
-  const [historyView, setHistoryView] = useState<SpendingHistoryView>("raw");
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
   const [selectedHistoryCategory, setSelectedHistoryCategory] = useState("");
@@ -118,12 +115,12 @@ export default function SpendingPage() {
     }
   }
 
-  async function loadHistory(view: SpendingHistoryView) {
+  async function loadHistory() {
     const requestId = historyRequestId.current + 1;
     historyRequestId.current = requestId;
     setHistoryLoading(true);
     try {
-      const nextHistory = await loadSpendingHistory(fetch, view);
+      const nextHistory = await loadSpendingHistory(fetch, "raw");
       if (historyRequestId.current !== requestId) return;
       setHistory(nextHistory);
       setSelectedHistoryCategory((selected) =>
@@ -170,15 +167,13 @@ export default function SpendingPage() {
   useEffect(() => {
     void Promise.resolve().then(() => {
       void load();
-      void loadHistory("raw");
+      void loadHistory();
     });
   }, []);
 
   const selectedHistory = period
     ? history.find((entry) => periodId(entry.period) === periodId(period))
     : undefined;
-  const previousPeriod = period ? previousComparablePeriod(history, period) : null;
-  const comparison = period ? calculatePeriodComparison(period, previousPeriod) : null;
   const availableHistoryCategories = Array.from(
     new Map(
       history.flatMap((entry) => entry.categories.map((category) => [
@@ -206,13 +201,14 @@ export default function SpendingPage() {
       .reverse()
     : [];
   const maxChartTotal = Math.max(0, ...chartHistory.map((entry) => Number(entry.period.total)));
-  const topCategories = [...categories].sort((left, right) => compareDecimalStrings(right.total, left.total)).slice(0, 5);
+  const sortedCategories = [...categories].sort((left, right) => compareDecimalStrings(right.total, left.total));
+  const topCategories = sortedCategories.slice(0, 5);
   const categoryShare = (category: SpendingCategory) => calculateSpendingShare(category.total, period?.total ?? "0");
   const categoryShareLabel = (category: SpendingCategory) => {
     const share = categoryShare(category);
     return share === null ? "—" : `${share}%`;
   };
-  const categoryRing = categories.reduce(
+  const categoryRing = sortedCategories.reduce(
     ({ segments, offset }, category, index) => {
       const share = categoryShare(category);
       if (share === null || compareDecimalStrings(share, "0") <= 0 || offset >= 100) return { segments, offset };
@@ -333,7 +329,7 @@ export default function SpendingPage() {
                   <tbody>
                     {sortSpendingTransactions(filterSpendingTransactions(transactions, transactionQuery, "all"), transactionSort).map((transaction) => (
                       <tr key={transaction.sourceTransactionKey}>
-                        <td>{transaction.date ?? "—"}</td>
+                        <td>{transaction.date ? formatDate(transaction.date) : "—"}</td>
                         <td>{transaction.description}</td>
                         <td>{amount(period.currency, transaction.amount)}</td>
                       </tr>
@@ -367,10 +363,7 @@ export default function SpendingPage() {
             <div className="spending-period-hero-footer">
               <div>
                 <p className="spending-period-dates">{periodLabel(period)}</p>
-                {period.importedAt && <p className="spending-freshness">Last synced {new Date(period.importedAt).toLocaleDateString()} via agent import</p>}
-                {period.sourceRevision && period.sourceIssuedAt && (
-                  <p className="spending-freshness">Report revision {period.sourceRevision}, generated {new Date(period.sourceIssuedAt).toLocaleDateString()}</p>
-                )}
+                {period.importedAt && <p className="spending-freshness">Last synced {formatDate(period.importedAt)}</p>}
               </div>
               <div className="spending-period-controls" aria-label="Spending period navigation">
                 <button type="button" aria-label="Previous spending period" title="Previous spending period" disabled={!previousNavigationPeriod || loading} onClick={() => previousNavigationPeriod && void load(previousNavigationPeriod)}>
@@ -378,7 +371,7 @@ export default function SpendingPage() {
                 </button>
                 {periods.length > 0 && (
                   <label className="spending-period-picker">
-                    <span className="sr-only">Select spending period</span>
+                    <span className="sr-only">Spending period</span>
                     <select aria-label="Select spending period" value={periodId(period)} disabled={loading} onChange={(event) => {
                       const selected = periods.find((candidate) => periodId(candidate) === event.target.value);
                       if (selected) void load(selected);
@@ -395,47 +388,47 @@ export default function SpendingPage() {
             </div>
           </section>
 
-          <section className="spending-category-overview" aria-label="Category spending overview">
-            <section className="spending-categories" aria-labelledby="spending-categories-heading">
-              <div className="spending-section-heading">
-                <div>
-                  <p className="section-label">Breakdown</p>
-                  <h2 id="spending-categories-heading">Spending by category</h2>
-                </div>
-                <span>{categories.length} {categories.length === 1 ? "category" : "categories"}</span>
+          <section className="spending-categories" aria-labelledby="spending-categories-heading">
+            <div className="spending-section-heading">
+              <div>
+                <p className="section-label">Breakdown</p>
+                <h2 id="spending-categories-heading">Spending by category</h2>
               </div>
-              {categories.length === 0 ? (
-                <p className="spending-no-categories">No category totals were provided for this period.</p>
-              ) : (
-                <div className="spending-category-breakdown">
-                  <div className="spending-category-ring-wrap">
-                    <div
-                      className="spending-category-ring"
-                      aria-label="Spending by category"
-                      role="img"
-                      style={{ background: categoryRingGradient ? `conic-gradient(${categoryRingGradient})` : "var(--surface-soft)" }}
-                    >
-                      <div>
-                        <span>Total spend</span>
-                        <strong>{amount(period.currency, period.total)}</strong>
-                      </div>
+              <span>{categories.length} {categories.length === 1 ? "category" : "categories"}</span>
+            </div>
+            {categories.length === 0 ? (
+              <p className="spending-no-categories">No category totals were provided for this period.</p>
+            ) : (
+              <div className="spending-category-breakdown">
+                <div className="spending-category-ring-wrap">
+                  <div
+                    className="spending-category-ring"
+                    aria-label="Spending by category"
+                    role="img"
+                    style={{ background: categoryRingGradient ? `conic-gradient(${categoryRingGradient})` : "var(--surface-soft)" }}
+                  >
+                    <div>
+                      <span>Total spend</span>
+                      <strong>{amount(period.currency, period.total)}</strong>
                     </div>
                   </div>
-                  <ul className="spending-category-legend">
-                    {categories.map((category, index) => (
-                      <li key={category.sourceCategoryKey}>
-                        <button type="button" onClick={() => void openCategory(category)}>
-                          <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 8})` }} />
-                          <span>{category.name}</span>
-                          <strong>{categoryShareLabel(category)}</strong>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-              )}
-            </section>
+                <ul className="spending-category-legend">
+                  {sortedCategories.map((category, index) => (
+                    <li key={category.sourceCategoryKey}>
+                      <button type="button" onClick={() => void openCategory(category)}>
+                        <i aria-hidden="true" style={{ background: `var(--spending-category-color-${index % 8})` }} />
+                        <span>{category.name}</span>
+                        <strong>{categoryShareLabel(category)}</strong>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
 
+          <section className="spending-dashboard-lower-row" aria-label="Top categories and recent activity">
             <section className="spending-top-categories" aria-labelledby="spending-top-categories-heading">
               <div className="spending-section-heading">
                 <div>
@@ -459,21 +452,20 @@ export default function SpendingPage() {
                 </ol>
               )}
             </section>
-          </section>
 
-          <section className="spending-dashboard-lower-row" aria-label="Spending activity and history">
             <section className="spending-recent" aria-labelledby="spending-recent-heading">
               <div className="spending-section-heading"><div><p className="section-label">Recent activity</p><h2 id="spending-recent-heading">Recent transactions</h2></div></div>
               {recentTransactions.length === 0 ? <p className="spending-no-categories">No dated transactions were provided for this period.</p> : (
                 <ul>{recentTransactions.map((transaction) => <li key={transaction.sourceTransactionKey}>
                   <span className={`spending-recent-transaction-icon is-${transaction.lineType ?? "transaction"}`} aria-hidden="true"><ReceiptText size={16} /></span>
-                  <span className="spending-recent-transaction-content"><strong>{transaction.description}</strong><small>{transaction.date ?? "Undated imported line"}</small></span>
+                  <span className="spending-recent-transaction-content"><strong>{transaction.description}</strong><small>{transaction.date ? formatDate(transaction.date) : "Undated imported line"}</small></span>
                   <strong>{amount(period.currency, transaction.amount)}</strong>
                 </li>)}</ul>
               )}
             </section>
+          </section>
 
-            <section className="spending-history" aria-labelledby="spending-history-heading">
+          <section className="spending-history" aria-labelledby="spending-history-heading">
               <div className="spending-section-heading">
                 <div>
                   <p className="section-label">History</p>
@@ -485,7 +477,7 @@ export default function SpendingPage() {
               ) : historyLoadFailed ? (
                 <div className="spending-history-state" role="alert">
                   <strong>Historical spending is unavailable</strong>
-                  <button type="button" className="secondary-button" onClick={() => void loadHistory(historyView)}>
+                  <button type="button" className="secondary-button" onClick={() => void loadHistory()}>
                     <RotateCcw size={16} /> Try again
                   </button>
                 </div>
@@ -513,23 +505,8 @@ export default function SpendingPage() {
               <details className="spending-history-details">
                 <summary>View detailed history</summary>
                 <div className="spending-history-details-content">
-                  <div className="spending-history-detail-controls">
-                    <div className="spending-comparison-card">
-                      <p className="section-label">Compared with previous period</p>
-                      {comparison && previousPeriod ? (
-                        <><strong className={comparison.absoluteChange.startsWith("-") ? "spending-change-down" : "spending-change-up"}>{signedAmount(period.currency, comparison.absoluteChange)}</strong><p>{comparison.percentageChange === null ? `Previous total was zero (${periodLabel(previousPeriod)}).` : `${comparison.percentageChange.startsWith("-") ? "" : "+"}${comparison.percentageChange}% from ${periodLabel(previousPeriod)}.`}</p></>
-                      ) : <p>No comparable earlier period is available for this source and currency.</p>}
-                    </div>
-                    <label className="spending-history-view">
-                      <span>Historical reporting view</span>
-                      <select aria-label="Historical reporting view" value={historyView} disabled={historyLoading} onChange={(event) => { const view = event.target.value as SpendingHistoryView; setHistoryView(view); void loadHistory(view); }}>
-                        <option value="raw">Source categories</option>
-                        <option value="normalized">Reporting groups</option>
-                      </select>
-                    </label>
-                  </div>
                   <div className="spending-history-period-list">
-                    <h3>Imported period totals</h3>
+                    <h3>Period totals</h3>
                     <ul>
                       {history.filter((entry) => entry.period.sourceProducer === period.sourceProducer && entry.period.currency === period.currency).map((entry) => (
                         <li key={periodId(entry.period)} className={periodId(entry.period) === periodId(period) ? "is-selected" : undefined}>
@@ -538,12 +515,11 @@ export default function SpendingPage() {
                       ))}
                     </ul>
                   </div>
-                  {selectedHistory && <div className="spending-history-categories"><h3>{historyView === "raw" ? "Source category totals" : "Reporting group totals"}</h3><p>{periodLabel(selectedHistory.period)} — original source values remain available in Source categories.</p><ul className="spending-history-category-list">{selectedHistory.categories.map((category) => <li key={categoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>)}</ul></div>}
-                  {availableHistoryCategories.length > 0 && <div className="spending-category-trend"><label><span>Category trend</span><select aria-label="Select category trend" value={selectedHistoryCategory} onChange={(event) => setSelectedHistoryCategory(event.target.value)}>{availableHistoryCategories.map(([id, category]) => <option key={id} value={id}>{category.name}</option>)}</select></label><ul>{categoryTrend.map(({ period: trendPeriod, category }) => <li key={periodId(trendPeriod)}><span>{periodLabel(trendPeriod)}</span><strong>{amount(trendPeriod.currency, category.total)}</strong></li>)}</ul></div>}
+                  {selectedHistory && <div className="spending-history-categories"><h3>Source category totals</h3><p>{periodLabel(selectedHistory.period)}</p><ul className="spending-history-category-list">{selectedHistory.categories.map((category) => <li key={categoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>)}</ul></div>}
+                  {availableHistoryCategories.length > 0 && <div className="spending-category-trend"><div className="spending-category-trend-heading"><h3>Category trend</h3><select aria-label="Select category trend" value={selectedHistoryCategory} onChange={(event) => setSelectedHistoryCategory(event.target.value)}>{availableHistoryCategories.map(([id, category]) => <option key={id} value={id}>{category.name}</option>)}</select></div><ul>{categoryTrend.map(({ period: trendPeriod, category }) => <li key={periodId(trendPeriod)}><span>{periodLabel(trendPeriod)}</span><strong>{amount(trendPeriod.currency, category.total)}</strong></li>)}</ul></div>}
                 </div>
               </details>
             </section>
-          </section>
         </>
       )}
     </div>

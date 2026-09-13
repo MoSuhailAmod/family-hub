@@ -26,7 +26,7 @@ test("Spending dashboard uses the approved V2 header subtitle", async () => {
 test("Spending dashboard renders dynamic category cards with an accessible ring breakdown", async () => {
   const page = await readFile(pagePath, "utf8");
 
-  assert.match(page, /spending-category-overview/);
+  assert.match(page, /spending-categories/);
   assert.match(page, /spending-category-ring/);
   assert.match(page, /aria-label="Spending by category"/);
   assert.match(page, /categoryShare/);
