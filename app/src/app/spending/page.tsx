@@ -439,7 +439,6 @@ export default function SpendingPage() {
                           role="button"
                           tabIndex={0}
                           aria-pressed={pinnedChartCategoryKey === category.sourceCategoryKey}
-                          aria-describedby={isActive ? "spending-category-chart-detail" : undefined}
                           aria-label={`${category.name}: ${amount(period.currency, category.total)}, ${categoryShareLabel(category)} of total spend`}
                           stroke={`var(--spending-category-color-${index % 8})`}
                           strokeDasharray={`${share} ${100 - share}`}
@@ -448,27 +447,44 @@ export default function SpendingPage() {
                           onMouseLeave={() => setActiveChartCategoryKey(null)}
                           onFocus={() => setActiveChartCategoryKey(category.sourceCategoryKey)}
                           onBlur={() => setActiveChartCategoryKey(null)}
-                          onClick={() => setPinnedChartCategoryKey((selected) => selected === category.sourceCategoryKey ? null : category.sourceCategoryKey)}
+                          onClick={() => {
+                            if (pinnedChartCategoryKey === category.sourceCategoryKey) {
+                                setPinnedChartCategoryKey(null);
+                                setActiveChartCategoryKey(null);
+                            } else {
+                              setPinnedChartCategoryKey(category.sourceCategoryKey);
+                            }
+                          }}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              setPinnedChartCategoryKey((selected) => selected === category.sourceCategoryKey ? null : category.sourceCategoryKey);
+
+                              if (pinnedChartCategoryKey === category.sourceCategoryKey) {
+                                setPinnedChartCategoryKey(null);
+                                setActiveChartCategoryKey(null);
+                              } else {
+                                setPinnedChartCategoryKey(category.sourceCategoryKey);
+                              }
                             }
                           }}
                         />
                       );
                     })}
                   </svg>
-                  <div className="spending-category-ring-center" aria-hidden="true">
-                    <span>Total spend</span>
-                    <strong>{amount(period.currency, period.total)}</strong>
+                  <div className="spending-category-ring-center">
+                    {displayedChartCategory ? (
+                      <>
+                        <span>{displayedChartCategory.name}</span>
+                        <strong>{amount(period.currency, displayedChartCategory.total)}</strong>
+                        <small>{categoryShareLabel(displayedChartCategory)} of total</small>
+                      </>
+                    ) : (
+                      <>
+                        <span>Total spend</span>
+                        <strong>{amount(period.currency, period.total)}</strong>
+                      </>
+                    )}
                   </div>
-                  {displayedChartCategory && (
-                    <div id="spending-category-chart-detail" className="spending-category-chart-tooltip" role="tooltip">
-                      <strong>{displayedChartCategory.name}</strong>
-                      <span>{amount(period.currency, displayedChartCategory.total)} · {categoryShareLabel(displayedChartCategory)} of total spend</span>
-                    </div>
-                  )}
                 </div>
                 <ul className="spending-category-legend">
                   {sortedCategories.map((category, index) => (
