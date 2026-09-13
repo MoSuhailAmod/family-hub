@@ -35,6 +35,18 @@ test("Spending dashboard renders dynamic category cards with an accessible ring 
   assert.match(page, /onClick=\{\(\) => void openCategory\(category\)\}/);
 });
 
+test("Spending category breakdown keeps amounts in the list and exposes chart detail accessibly", async () => {
+  const page = await readFile(pagePath, "utf8");
+
+  assert.match(page, /activeChartCategoryKey/);
+  assert.match(page, /pinnedChartCategoryKey/);
+  assert.match(page, /spending-category-chart-tooltip/);
+  assert.match(page, /role="button"/);
+  assert.match(page, /aria-label=\{`\$\{category\.name\}: \$\{amount\(period\.currency, category\.total\)\}, \$\{categoryShareLabel\(category\)\} of total spend`\}/);
+  assert.match(page, /<strong>\{amount\(period\.currency, category\.total\)\}<\/strong>/);
+  assert.doesNotMatch(page, /<strong>\{categoryShareLabel\(category\)\}<\/strong>/);
+});
+
 test("Spending dashboard renders recent transactions as compact source-aware rows", async () => {
   const page = await readFile(pagePath, "utf8");
 
