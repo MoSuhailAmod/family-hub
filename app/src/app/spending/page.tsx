@@ -68,6 +68,7 @@ export default function SpendingPage() {
   const [categories, setCategories] = useState<SpendingCategory[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<SpendingTransaction[]>([]);
   const [history, setHistory] = useState<SpendingHistoryEntry[]>([]);
+  const [trendHistory, setTrendHistory] = useState<SpendingHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
   const [selectedHistoryCategory, setSelectedHistoryCategory] = useState("");
@@ -115,16 +116,20 @@ export default function SpendingPage() {
     historyRequestId.current = requestId;
     setHistoryLoading(true);
     try {
-      const nextHistory = await loadSpendingHistory(fetch, "normalized");
+      const [nextHistory, nextTrendHistory] = await Promise.all([
+        loadSpendingHistory(fetch, "raw"),
+        loadSpendingHistory(fetch, "normalized"),
+      ]);
       if (historyRequestId.current !== requestId) return;
       setHistory(nextHistory);
+      setTrendHistory(nextTrendHistory);
       setSelectedHistoryCategory((selected) =>
-        nextHistory.some((entry) => entry.categories.some((category) =>
+        nextTrendHistory.some((entry) => entry.categories.some((category) =>
           spendingCategoryId(category, entry.period.sourceProducer) === selected,
         ))
           ? selected
-          : (nextHistory[0]?.categories[0]
-            ? spendingCategoryId(nextHistory[0].categories[0], nextHistory[0].period.sourceProducer)
+          : (nextTrendHistory[0]?.categories[0]
+            ? spendingCategoryId(nextTrendHistory[0].categories[0], nextTrendHistory[0].period.sourceProducer)
             : ""),
       );
       setHistoryLoadFailed(false);
@@ -182,13 +187,13 @@ export default function SpendingPage() {
     : undefined;
   const availableHistoryCategories = Array.from(
     new Map(
-      history.flatMap((entry) => entry.categories.map((category) => [
+      trendHistory.flatMap((entry) => entry.categories.map((category) => [
         spendingCategoryId(category, entry.period.sourceProducer),
         category,
       ] as const)),
     ).entries(),
   );
-  const categoryTrend = spendingCategoryTrend(history, selectedHistoryCategory);
+  const categoryTrend = spendingCategoryTrend(trendHistory, selectedHistoryCategory);
   const chartHistory = period
     ? history
       .filter((entry) =>
