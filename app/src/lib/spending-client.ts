@@ -32,6 +32,32 @@ export type SpendingHistoryEntry = {
   categories: (SpendingCategory | SpendingReportingCategory)[];
 };
 
+export function spendingCategoryId(
+  category: SpendingHistoryEntry["categories"][number],
+  sourceProducer: string,
+) {
+  const categoryKey = "reportingGroupId" in category && category.reportingGroupId
+    ? `group:${category.reportingGroupId}`
+    : "sourceCategoryKey" in category
+      ? `source:${category.sourceCategoryKey}`
+      : `sources:${[...category.sourceCategoryKeys].sort().join("\u0000")}`;
+  return `${sourceProducer}\u0000${categoryKey}`;
+}
+
+export function spendingCategoryTrend(
+  history: SpendingHistoryEntry[],
+  selectedCategoryId: string,
+) {
+  return history
+    .map((entry) => ({
+      period: entry.period,
+      category: entry.categories.find((candidate) =>
+        spendingCategoryId(candidate, entry.period.sourceProducer) === selectedCategoryId,
+      ),
+    }))
+    .filter((entry): entry is { period: SpendingPeriod; category: SpendingHistoryEntry["categories"][number] } => Boolean(entry.category));
+}
+
 export type SpendingPeriodComparison = {
   absoluteChange: string;
   percentageChange: string | null;
