@@ -23,6 +23,8 @@ import {
   loadSpendingDashboard,
   loadSpendingHistory,
   sortSpendingTransactions,
+  spendingCategoryId,
+  spendingCategoryTrend,
   type SpendingCategory,
   type SpendingHistoryEntry,
   type SpendingPeriod,
@@ -58,18 +60,6 @@ function amount(currency: string, total: string) {
   }).format(value);
 
   return currency === "ZAR" ? `R ${formatted}` : `${currency} ${formatted}`;
-}
-
-function categoryId(
-  category: SpendingHistoryEntry["categories"][number],
-  sourceProducer: string,
-) {
-  const categoryKey = "reportingGroupId" in category && category.reportingGroupId
-    ? `group:${category.reportingGroupId}`
-    : "sourceCategoryKey" in category
-      ? `source:${category.sourceCategoryKey}`
-      : `sources:${[...category.sourceCategoryKeys].sort().join("\u0000")}`;
-  return `${sourceProducer}\u0000${categoryKey}`;
 }
 
 export default function SpendingPage() {
@@ -125,16 +115,16 @@ export default function SpendingPage() {
     historyRequestId.current = requestId;
     setHistoryLoading(true);
     try {
-      const nextHistory = await loadSpendingHistory(fetch, "raw");
+      const nextHistory = await loadSpendingHistory(fetch, "normalized");
       if (historyRequestId.current !== requestId) return;
       setHistory(nextHistory);
       setSelectedHistoryCategory((selected) =>
         nextHistory.some((entry) => entry.categories.some((category) =>
-          categoryId(category, entry.period.sourceProducer) === selected,
+          spendingCategoryId(category, entry.period.sourceProducer) === selected,
         ))
           ? selected
           : (nextHistory[0]?.categories[0]
-            ? categoryId(nextHistory[0].categories[0], nextHistory[0].period.sourceProducer)
+            ? spendingCategoryId(nextHistory[0].categories[0], nextHistory[0].period.sourceProducer)
             : ""),
       );
       setHistoryLoadFailed(false);
@@ -193,19 +183,12 @@ export default function SpendingPage() {
   const availableHistoryCategories = Array.from(
     new Map(
       history.flatMap((entry) => entry.categories.map((category) => [
-        categoryId(category, entry.period.sourceProducer),
+        spendingCategoryId(category, entry.period.sourceProducer),
         category,
       ] as const)),
     ).entries(),
   );
-  const categoryTrend = history
-    .map((entry) => ({
-      period: entry.period,
-      category: entry.categories.find((candidate) =>
-        categoryId(candidate, entry.period.sourceProducer) === selectedHistoryCategory,
-      ),
-    }))
-    .filter((entry): entry is { period: SpendingPeriod; category: SpendingHistoryEntry["categories"][number] } => Boolean(entry.category));
+  const categoryTrend = spendingCategoryTrend(history, selectedHistoryCategory);
   const chartHistory = period
     ? history
       .filter((entry) =>
@@ -588,7 +571,7 @@ export default function SpendingPage() {
                       ))}
                     </ul>
                   </div>
-                  {selectedHistory && <div className="spending-history-categories"><h3>Source category totals</h3><p>{periodLabel(selectedHistory.period)}</p><ul className="spending-history-category-list">{selectedHistory.categories.map((category) => <li key={categoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>)}</ul></div>}
+                  {selectedHistory && <div className="spending-history-categories"><h3>Source category totals</h3><p>{periodLabel(selectedHistory.period)}</p><ul className="spending-history-category-list">{selectedHistory.categories.map((category) => <li key={spendingCategoryId(category, selectedHistory.period.sourceProducer)}><span>{category.name}</span><strong>{amount(selectedHistory.period.currency, category.total)}</strong></li>)}</ul></div>}
                   {availableHistoryCategories.length > 0 && <div className="spending-category-trend"><div className="spending-category-trend-heading"><h3>Category trend</h3><select aria-label="Select category trend" value={selectedHistoryCategory} onChange={(event) => setSelectedHistoryCategory(event.target.value)}>{availableHistoryCategories.map(([id, category]) => <option key={id} value={id}>{category.name}</option>)}</select></div><ul>{categoryTrend.map(({ period: trendPeriod, category }) => <li key={periodId(trendPeriod)}><span>{periodLabel(trendPeriod)}</span><strong>{amount(trendPeriod.currency, category.total)}</strong></li>)}</ul></div>}
                 </div>
               </details>

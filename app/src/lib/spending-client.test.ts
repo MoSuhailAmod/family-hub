@@ -10,6 +10,7 @@ import {
   loadSpendingHistory,
   loadSpendingOverview,
   previousComparablePeriod,
+  spendingCategoryTrend,
 } from "./spending-client";
 
 const latestPeriod = {
@@ -194,6 +195,37 @@ test("loads dynamically returned raw or normalized categories for every historic
     "/api/spending/periods/2026%2F02/categories?sourceProducer=bank-import&view=normalized",
     "/api/spending/periods/2026%2F03/categories?sourceProducer=bank-import&view=normalized",
   ]);
+});
+
+test("builds a category trend across three periods when source keys share a reporting group", () => {
+  const sourceCategoryKeys = ["vehicle-finance", "vehicle-loan", "car-finance"];
+  const totals = ["500.00", "480.00", "470.00"];
+  const periods = [
+    { ...latestPeriod, sourcePeriodKey: "2026/03", total: "1300.00" },
+    { ...latestPeriod, sourcePeriodKey: "2026/02", startDate: "2026-02-01", endDate: "2026-02-28", total: "1200.00" },
+    { ...latestPeriod, sourcePeriodKey: "2026/01", startDate: "2026-01-01", endDate: "2026-01-31", total: "1100.00" },
+  ];
+  const history = periods.map((period, index) => ({
+    period,
+    categories: [{
+      reportingGroupId: "vehicle-finance",
+      sourceCategoryKeys: [sourceCategoryKeys[index]],
+      name: "Vehicle Finance",
+      total: totals[index],
+    }],
+  }));
+
+  assert.deepEqual(
+    spendingCategoryTrend(history, "bank-import\u0000group:vehicle-finance").map(({ period, category }) => ({
+      period: period.sourcePeriodKey,
+      total: category.total,
+    })),
+    [
+      { period: "2026/03", total: "500.00" },
+      { period: "2026/02", total: "480.00" },
+      { period: "2026/01", total: "470.00" },
+    ],
+  );
 });
 
 test("compares only completed same-currency source periods", () => {
