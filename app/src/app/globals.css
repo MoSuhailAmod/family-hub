@@ -1184,6 +1184,7 @@ a {
 
 .event-details-event-title {
   margin: 0 0 18px;
+  color: var(--text);
   font-size: 22px;
   font-weight: 750;
   line-height: 1.25;
