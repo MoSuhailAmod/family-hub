@@ -54,9 +54,13 @@ export async function GET(request: Request) {
       );
     }
 
-    return Response.json({
-      items: [...result.data, ...googleEvents],
-    });
+    const items = [...result.data, ...googleEvents].sort(
+      (a, b) =>
+        new Date(a.occurrenceStartAt).getTime() -
+        new Date(b.occurrenceStartAt).getTime(),
+    );
+
+    return Response.json({ items });
   } catch (error) {
     console.error("Failed to load events:", error);
 
