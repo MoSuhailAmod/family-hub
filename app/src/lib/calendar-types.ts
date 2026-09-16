@@ -8,7 +8,6 @@ export type FamilyMember = {
 export type EventCategory = {
   id: string;
   name: string;
-  color: string;
   icon: string | null;
   isActive: boolean;
 };
@@ -36,7 +35,6 @@ export type CalendarOccurrence = {
   category: {
     id: string;
     name: string;
-    color: string;
   } | null;
 
   participants: Participant[];

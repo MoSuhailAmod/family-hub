@@ -85,7 +85,6 @@ function toOccurrence(
         ? {
             id: family.id,
             name: family.name,
-            color: family.color,
           }
         : null;
     })(),

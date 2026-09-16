@@ -79,9 +79,6 @@ export const eventCategories = pgTable("event_categories", {
     .notNull()
     .unique(),
 
-  color: text("color")
-    .notNull(),
-
   icon: text("icon"),
 
   isActive: boolean("is_active")
