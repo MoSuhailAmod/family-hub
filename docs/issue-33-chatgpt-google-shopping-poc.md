@@ -1,6 +1,20 @@
 # Issue #33: ChatGPT → Google-side shopping write POC
 
-**Status:** Stop condition confirmed — no supported ChatGPT write path is available on the household's current personal ChatGPT Plus plan.[8]
+**Status:** Partially superseded — see [Correction (2026-09-17)](#correction-2026-09-17). The Google Keep conclusions and the voice-input boundary still stand. The claim that no ChatGPT write mechanism exists on a personal Plus plan is **no longer accurate**, though a different constraint now gates the same path.
+
+## Correction (2026-09-17)
+
+This document is a point-in-time investigation record. Three of its conclusions have changed and are corrected here rather than rewritten in place, so the original reasoning stays auditable.
+
+**1. Custom MCP write connectors are available on Plus and Pro.** The original "Explicitly rejected options" entry stated that OpenAI limits full MCP write support to eligible managed workspace plans. That is superseded: ChatGPT Developer Mode supports connecting custom remote MCP servers with both read and write tools on personal Plus and Pro accounts.[5][11] Plan eligibility is no longer the blocker.
+
+**2. The real blocker is authentication, not plan tier.** ChatGPT custom connectors support **OAuth 2.1 or no authentication only**. They cannot present a static bearer token or API key, and do not support machine-to-machine grants such as client credentials, service accounts, or JWT bearer assertions.[11] Connecting Family Hub's existing `/mcp` server therefore requires either a full OAuth 2.1 authorization server plus discovery metadata, or exposing an endpoint publicly with no authentication at all. Both also require public HTTPS ingress, which the deployment does not have today — see `docs/deployment.md` and `docs/security.md`.
+
+**3. The voice boundary below is unchanged and is now the decisive constraint.** ChatGPT voice mode cannot invoke MCP tools or connectors.[9] This applies to *any* backend, so it is not solved by changing the bridge. Even a fully implemented connector yields typed or dictated control only, never hands-free capture.
+
+**Consequence:** the ChatGPT track is deferred by decision, not blocked by capability. It is now a cost/benefit judgement — public ingress plus OAuth 2.1, in exchange for text-only control — rather than an unavailable feature. See issue #32 for the current direction.
+
+**Also note:** the Google Keep bridge architecture this document was written to evaluate has since been retired wholesale by issue #32, not merely gated. The Keep sync work referenced below (#34–#38, #41) is closed `not planned`. Treat the Keep sections here as historical rationale for *why* that architecture was abandoned.
 
 ## Decision
 
@@ -36,19 +50,21 @@ Do not alter the downstream Keep sync work to use Tasks unless a separate design
 - **Keep scraping or private endpoints:** rejected by the issue stop conditions.
 - **Custom GPT Action on the current personal Plus plan:** unavailable because new personal GPT creation/publishing is unavailable.[8]
 - **ChatGPT Voice/Live plus Custom GPT Actions:** unsupported because custom actions are unavailable in Voice conversations with GPTs.[9]
-- **Custom MCP write connector:** not a Plus-plan alternative; OpenAI limits full MCP write support to eligible managed workspace plans.[5]
+- **Custom MCP write connector:** ~~not a Plus-plan alternative; OpenAI limits full MCP write support to eligible managed workspace plans.[5]~~ **Superseded 2026-09-17** — available on Plus and Pro via Developer Mode. Now gated by the OAuth-only authentication requirement and the lack of public HTTPS ingress, not by plan tier. See [Correction](#correction-2026-09-17).
 - **Google Tasks as a silent substitute:** rejected because Google Assistant shopping lists are stored in Keep, not Tasks.[10]
 - **Public/unauthenticated webhooks or direct PostgreSQL writes:** rejected by the issue's security and architecture constraints.
 
 ## What would reopen the investigation
 
-Only one of the following evidence-backed changes justifies reopening Issue #33:
+Superseded by the [Correction](#correction-2026-09-17). Reopening is now a deliberate decision to accept cost, not a wait for a capability. Picking the ChatGPT track back up requires accepting **all** of:
 
-1. The household moves to an eligible managed ChatGPT workspace and can create a Custom GPT Action; a **text-only** real-account proof is then required. Voice support still needs independent validation because it remains unavailable for Custom GPT Actions.[8][9]
-2. A supported, Plus-compatible existing ChatGPT plugin/app is identified that can write a single canonical Google Keep shopping list; it must be tested from the household account with a real test item.
-3. Google publishes a supported Keep API mutation that can append/update an existing list item and a supported ChatGPT surface can invoke the authenticated adapter on the household's plan.
+1. **Public HTTPS ingress** to Family Hub, replacing the current LAN-only posture, with the hardening `docs/security.md` mandates before any exposure beyond the trusted LAN.
+2. **An authentication choice**, both of which have real costs:
+   - OAuth 2.1 — Family Hub as resource server plus an authorization server issuing tokens and publishing discovery metadata. Correct and reusable, but the largest single workstream in this area.
+   - A narrowly scoped unauthenticated endpoint exposing shopping tools only — far cheaper, but a public write surface, and the calendar and spending tools must be provably unreachable from it.
+3. **Accepting text-only control.** Voice remains unavailable for custom tools, so this buys conversational typing and dictation, not hands-free capture.
 
-Until then, preserve Google Keep as the Google Nest/Assistant shopping-list store and treat ChatGPT shopping write integration as blocked. Issue #34 and the later Keep sync tasks remain gated behind an accepted supported architecture and a real-account proof.
+The Google Keep track is not reopenable on these terms — it was retired by issue #32 independently of ChatGPT, and #34–#38 and #41 are closed `not planned`.
 
 ## Evidence not claimed
 
@@ -66,3 +82,4 @@ No Google credentials were requested, stored, or tested during this work. No Cha
 [8] https://help.openai.com/en/articles/8554397
 [9] https://help.openai.com/en/articles/20001274-chatgpt-voice
 [10] https://support.google.com/assistant/answer/14171370
+[11] https://developers.openai.com/api/docs/guides/developer-mode
