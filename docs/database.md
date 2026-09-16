@@ -18,14 +18,14 @@ erDiagram
 | Table | Purpose and key relationships |
 | --- | --- |
 | `family_members` | Household participants and display colour metadata; unique name and active flag. Not auth users. |
-| `event_categories` | Active/inactive named category metadata: unique name, required colour, optional icon. |
+| `event_categories` | Active/inactive named category metadata: unique name, optional icon. Categories carry no colour of their own. |
 | `calendar_events` | Event payload, timestamptz start/end, all-day flag, optional location/category, and optional RRULE text. Category deletion sets `category_id` to null. |
 | `event_participants` | Calendar-event ↔ family-member many-to-many join with composite primary key; both references cascade on delete. |
 | `calendar_event_reminders` | Per-event reminder offsets. The database constrains offsets to 10, 30, 60, 1440, or 10080 minutes and prevents duplicate event/offset pairs. |
 | `notification_destinations` | Per-member provider targets; provider/target is unique. |
 | `notification_deliveries` | Durable delivery attempts for a reminder occurrence and destination; unique occurrence identity prevents duplicate deliveries. |
 
-Event categories do have colour metadata today. The calendar UI deliberately chooses the first participant colour first, falls back to category colour, then a neutral colour; category colour remains available as metadata rather than the normal event-rendering colour. See `app/src/app/calendar/page.tsx`.
+Event colour is driven entirely by the assigned family member: the calendar UI uses the first participant's colour, or a neutral fallback when unassigned. `event_categories` no longer has a `color` column; categories remain useful metadata for naming and filtering only. See `app/src/app/calendar/page.tsx`.
 
 ## Other current schema areas
 

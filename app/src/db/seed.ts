@@ -32,34 +32,13 @@ const members = [
 ];
 
 const categories = [
-  {
-    name: "Family",
-    color: "#8B5CF6",
-  },
-  {
-    name: "School",
-    color: "#F97316",
-  },
-  {
-    name: "Work",
-    color: "#2563EB",
-  },
-  {
-    name: "Medical",
-    color: "#EF4444",
-  },
-  {
-    name: "Birthday",
-    color: "#EC4899",
-  },
-  {
-    name: "Appointment",
-    color: "#14B8A6",
-  },
-  {
-    name: "Holiday",
-    color: "#22C55E",
-  },
+  { name: "Family" },
+  { name: "School" },
+  { name: "Work" },
+  { name: "Medical" },
+  { name: "Birthday" },
+  { name: "Appointment" },
+  { name: "Holiday" },
 ];
 
 async function seed() {

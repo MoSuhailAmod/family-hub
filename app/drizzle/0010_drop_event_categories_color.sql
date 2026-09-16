@@ -1,0 +1,1 @@
+ALTER TABLE "event_categories" DROP COLUMN "color";

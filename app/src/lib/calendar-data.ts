@@ -17,7 +17,6 @@ type EventRow = {
   created_at: Date;
   updated_at: Date;
   category_name: string | null;
-  category_color: string | null;
 };
 
 type ParticipantRow = {
@@ -48,7 +47,6 @@ export type CalendarEvent = {
   category: {
     id: string;
     name: string;
-    color: string;
   } | null;
 
   participants: {
@@ -83,7 +81,6 @@ export async function listEventCategories() {
       SELECT
         id,
         name,
-        color,
         icon,
         is_active AS "isActive"
       FROM event_categories
@@ -194,13 +191,10 @@ function mapEvent(
     updatedAt: row.updated_at,
 
     category:
-      row.category_id &&
-      row.category_name &&
-      row.category_color
+      row.category_id && row.category_name
         ? {
             id: row.category_id,
             name: row.category_name,
-            color: row.category_color,
           }
         : null,
 
@@ -214,8 +208,7 @@ export async function getEventById(id: string) {
     `
       SELECT
         e.*,
-        c.name AS category_name,
-        c.color AS category_color
+        c.name AS category_name
       FROM calendar_events e
       LEFT JOIN event_categories c
         ON c.id = e.category_id
@@ -243,8 +236,7 @@ export async function getEventsForRange(
     `
       SELECT
         e.*,
-        c.name AS category_name,
-        c.color AS category_color
+        c.name AS category_name
       FROM calendar_events e
       LEFT JOIN event_categories c
         ON c.id = e.category_id
