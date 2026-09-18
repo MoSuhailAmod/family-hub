@@ -14,4 +14,6 @@ A direct ChatGPT-compatible client → authenticated MCP/tools → shared Family
 
 Future shopping, gallery, voice/Google Nest research, and other modules should expose narrowly scoped tool adapters over their own shared services when they exist. Google Calendar, Home Assistant, and future voice platforms remain optional integrations rather than the core Family Hub backend.
 
+Voice-driven shopping input is analysed in [Voice-driven shopping input](issue-32-voice-shopping-input-analysis.md), which records why the ChatGPT and Google Nest tracks are deferred and recommends a phone-native capture path over a private network boundary. No implementation exists yet.
+
 When a new integration is implemented, document: the owning service functions, data authority, identity/secret handling, failure/retry behaviour, network boundary, and user-visible consistency rules. Avoid speculative implementation claims; link to the issue/design record until committed code exists.
