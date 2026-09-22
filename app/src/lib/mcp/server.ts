@@ -2,8 +2,11 @@ import { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
 
 import { spendingReconciliationService, spendingService } from "@/lib/spending";
+import { shoppingService } from "@/lib/shopping";
 import type { SpendingReconciliationService } from "@/lib/spending-reconciliation-route-handlers";
 import type { SpendingService } from "@/lib/spending-route-handlers";
+import type { ShoppingService } from "@/lib/shopping-route-handlers";
+import { ShoppingValidationError } from "@/lib/shopping-validation";
 import {
   getCalendarEventService,
   createCalendarEventService,
@@ -14,19 +17,34 @@ import {
   listCalendarEventsService,
 } from "@/lib/calendar-service";
 
-type SpendingMcpDependencies = {
+type FamilyHubMcpDependencies = {
   spendingService?: Pick<
     SpendingService,
     "listPeriods" | "getPeriod" | "listImportMetadata" | "listReconciliationHistory"
   >;
   spendingReconciliationService?: SpendingReconciliationService;
+  shoppingService?: Pick<ShoppingService, "list" | "create" | "setCompleted">;
 };
 
+function shoppingFailure(error: unknown, operation: string) {
+  if (error instanceof ShoppingValidationError) {
+    return { success: false as const, code: "VALIDATION", error: error.message };
+  }
+
+  console.error(`Failed to ${operation} shopping item via MCP:`, error);
+  return {
+    success: false as const,
+    code: "WRITE_FAILED",
+    error: `Unable to ${operation} the shopping item`,
+  };
+}
+
 export function createFamilyHubMcpServerWithDependencies(
-  dependencies: SpendingMcpDependencies = {},
+  dependencies: FamilyHubMcpDependencies = {},
 ) {
   const spendingReads = dependencies.spendingService ?? spendingService;
   const reconciliation = dependencies.spendingReconciliationService ?? spendingReconciliationService;
+  const shopping = dependencies.shoppingService ?? shoppingService;
   const server = new McpServer({
     name: "family-hub",
     version: "0.1.0",
@@ -348,6 +366,89 @@ export function createFamilyHubMcpServerWithDependencies(
         content: [{ type: "text", text: JSON.stringify(result) }],
         isError: !result.success,
       };
+    },
+  );
+
+  server.registerTool(
+    "shopping_list_items",
+    {
+      description: "List shopping items.",
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => {
+      try {
+        const items = await shopping.list();
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: true, data: items }) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(shoppingFailure(error, "list")) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "shopping_create_item",
+    {
+      description: "Create a shopping item.",
+      inputSchema: z.object({
+        name: z.string().min(1),
+        quantity: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const item = await shopping.create(input);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: true, data: item }) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(shoppingFailure(error, "create")) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "shopping_complete_item",
+    {
+      description: "Mark a shopping item as completed or incomplete.",
+      inputSchema: z.object({ id: z.string().uuid(), completed: z.boolean() }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ id, completed }) => {
+      try {
+        const item = await shopping.setCompleted(id, completed);
+        const result = item
+          ? { success: true as const, data: item }
+          : { success: false as const, code: "NOT_FOUND", error: "Shopping item not found" };
+        return {
+          content: [{ type: "text", text: JSON.stringify(result) }],
+          isError: !item,
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(shoppingFailure(error, "complete")) }],
+          isError: true,
+        };
+      }
     },
   );
 
