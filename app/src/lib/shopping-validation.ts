@@ -3,7 +3,6 @@ import { z } from "zod";
 import type {
   CreateShoppingItemInput,
   NormalizedUpdateShoppingItemInput,
-  UpdateShoppingItemInput,
 } from "./shopping-types";
 
 export class ShoppingValidationError extends Error {}
@@ -83,5 +82,3 @@ export function parseShoppingCompletion(input: unknown) {
 export function parseShoppingItemId(input: unknown) {
   return parseOrThrow(shoppingItemIdSchema, input);
 }
-
-export type { UpdateShoppingItemInput };

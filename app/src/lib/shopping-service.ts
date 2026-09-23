@@ -9,12 +9,7 @@ import type {
   ShoppingRepository,
 } from "./shopping-types";
 
-export type {
-  CreateShoppingItemInput,
-  ShoppingItem,
-  ShoppingRepository,
-  UpdateShoppingItemInput,
-} from "./shopping-types";
+export type { ShoppingItem, ShoppingRepository };
 
 function compareShoppingItems(a: ShoppingItem, b: ShoppingItem) {
   if (a.isCompleted !== b.isCompleted) {
