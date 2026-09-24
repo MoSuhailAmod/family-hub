@@ -42,4 +42,6 @@ export type ShoppingRepository = {
     completedAt: Date | null,
   ) => Promise<ShoppingItem | null>;
   delete: (id: string) => Promise<boolean>;
+  /** Hard deletes every completed item. Returns the number of rows removed. */
+  deleteCompleted: () => Promise<number>;
 };

@@ -83,4 +83,13 @@ export const shoppingRepository: ShoppingRepository = {
 
     return Boolean(row);
   },
+
+  async deleteCompleted() {
+    const rows = await db
+      .delete(shoppingItems)
+      .where(eq(shoppingItems.isCompleted, true))
+      .returning({ id: shoppingItems.id });
+
+    return rows.length;
+  },
 };

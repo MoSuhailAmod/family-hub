@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
-    "notifications:worker": "tsx src/worker/notifications.ts"
+    "notifications:worker": "tsx src/worker/notifications.ts",
+    "shopping-rollover:worker": "tsx src/worker/shopping-rollover.ts"
   },
   "dependencies": {
     "@fullcalendar/react": "^7.0.2",

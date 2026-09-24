@@ -64,3 +64,13 @@ export function createShoppingService(repository: ShoppingRepository) {
     },
   };
 }
+
+/**
+ * Hard deletes every completed shopping item. Reuses the repository's
+ * existing delete semantics; adds no new deletion logic of its own.
+ */
+export async function runShoppingRolloverService(
+  repository: Pick<ShoppingRepository, "deleteCompleted">,
+) {
+  return repository.deleteCompleted();
+}

@@ -45,6 +45,26 @@ export const shoppingItems = pgTable("shopping_items", {
   }),
 });
 
+// Idempotency record for the weekly shopping rollover worker: one row per
+// week (keyed by the Africa/Johannesburg Monday date) it has run for.
+export const shoppingRolloverRuns = pgTable(
+  "shopping_rollover_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    weekKey: text("week_key").notNull(),
+
+    ranAt: timestamp("ran_at", {
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("shopping_rollover_runs_week_key_unique").on(table.weekKey),
+  ],
+);
+
 export const familyMembers = pgTable("family_members", {
   id: uuid("id").defaultRandom().primaryKey(),
 
