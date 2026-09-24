@@ -5,6 +5,7 @@ import {
   type ShoppingItem,
   type ShoppingRepository,
   createShoppingService,
+  runShoppingRolloverService,
 } from "./shopping-service";
 
 function item(overrides: Partial<ShoppingItem> = {}): ShoppingItem {
@@ -72,6 +73,13 @@ function memoryRepository(initial: ShoppingItem[] = []): ShoppingRepository {
       if (index < 0) return false;
       items.splice(index, 1);
       return true;
+    },
+    async deleteCompleted() {
+      const remaining = items.filter((candidate) => !candidate.isCompleted);
+      const deletedCount = items.length - remaining.length;
+      items.length = 0;
+      items.push(...remaining);
+      return deletedCount;
     },
   };
 }
@@ -195,6 +203,21 @@ test("hard deletes an item by stable id", async () => {
 
   assert.equal(await service.delete(existing.id), true);
   assert.equal(await service.getById(existing.id), null);
+});
+
+test("rollover hard deletes completed items and leaves incomplete items untouched", async () => {
+  const active = item({ id: "00000000-0000-4000-8000-000000000001", isCompleted: false });
+  const completed = item({
+    id: "00000000-0000-4000-8000-000000000002",
+    isCompleted: true,
+    completedAt: new Date("2026-09-01T12:00:00.000Z"),
+  });
+  const repository = memoryRepository([active, completed]);
+
+  const deletedCount = await runShoppingRolloverService(repository);
+
+  assert.equal(deletedCount, 1);
+  assert.deepEqual((await repository.list()).map((candidate) => candidate.id), [active.id]);
 });
 
 test("lists active items then recently completed items using stable ordering", async () => {

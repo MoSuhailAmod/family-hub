@@ -29,6 +29,14 @@ test("defines the approved shopping_items persistence table", () => {
   ]);
 });
 
+test("defines idempotent weekly shopping rollover run records", () => {
+  assertTableColumns("shoppingRolloverRuns", "shopping_rollover_runs", [
+    "id",
+    "ranAt",
+    "weekKey",
+  ]);
+});
+
 test("defines calendar reminder rules with an event-scoped preset offset", () => {
   assertTableColumns("calendarEventReminders", "calendar_event_reminders", [
     "createdAt",
