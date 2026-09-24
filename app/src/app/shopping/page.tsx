@@ -24,11 +24,9 @@ type ShoppingItem = {
 
 type Draft = {
   name: string;
-  quantity: string;
-  notes: string;
 };
 
-const emptyDraft: Draft = { name: "", quantity: "", notes: "" };
+const emptyDraft: Draft = { name: "" };
 
 export default function ShoppingPage() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -66,11 +64,7 @@ export default function ShoppingPage() {
 
   function beginEdit(item: ShoppingItem) {
     setEditingId(item.id);
-    setDraft({
-      name: item.name,
-      quantity: item.quantity ?? "",
-      notes: item.notes ?? "",
-    });
+    setDraft({ name: item.name });
     setError(null);
     setFieldError(null);
     setSuccess(null);
@@ -94,11 +88,7 @@ export default function ShoppingPage() {
     setFieldError(null);
     setError(null);
     setSuccess(null);
-    const payload = {
-      name: draft.name,
-      quantity: draft.quantity,
-      notes: draft.notes,
-    };
+    const payload = { name: draft.name };
 
     try {
       if (editingId) {
@@ -210,24 +200,6 @@ export default function ShoppingPage() {
               disabled={saving}
             />
           </label>
-          <label>
-            <span>Quantity <em>optional</em></span>
-            <input
-              value={draft.quantity}
-              onChange={(event) => setDraft({ ...draft, quantity: event.target.value })}
-              placeholder="e.g. 2L"
-              disabled={saving}
-            />
-          </label>
-          <label className="shopping-notes-field">
-            <span>Notes <em>optional</em></span>
-            <input
-              value={draft.notes}
-              onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
-              placeholder="e.g. Unsweetened"
-              disabled={saving}
-            />
-          </label>
           <div className="shopping-form-actions">
             {editingId && (
               <button type="button" className="secondary-button" onClick={cancelEdit} disabled={saving}>
@@ -278,7 +250,7 @@ export default function ShoppingPage() {
 function ShoppingRow({ item, completed = false, pending = false, onComplete, onEdit, onDelete }: { item: ShoppingItem; completed?: boolean; pending?: boolean; onComplete: () => void; onEdit: () => void; onDelete: () => void }) {
   return <li className={`shopping-item ${completed ? "shopping-item-completed" : ""}`} aria-busy={pending}>
     <button type="button" className="shopping-complete-button" onClick={onComplete} disabled={pending} aria-label={completed ? `Restore ${item.name}` : `Complete ${item.name}`}>{pending ? "…" : completed ? <Check size={18} /> : <Circle size={18} />}</button>
-    <div className="shopping-item-copy"><strong>{item.name}</strong>{item.quantity && <span>{item.quantity}</span>}{item.notes && <p>{item.notes}</p>}</div>
+    <div className="shopping-item-copy"><strong>{item.name}</strong></div>
     <div className="shopping-item-actions"><button type="button" onClick={onEdit} disabled={pending} aria-label={`Edit ${item.name}`}><Pencil size={16} /></button><button type="button" onClick={onDelete} disabled={pending} aria-label={`Remove ${item.name}`}><Trash2 size={16} /></button></div>
   </li>;
 }
