@@ -10,6 +10,7 @@ export type EventCategory = {
   name: string;
   icon: string | null;
   isActive: boolean;
+  defaultReminderOffsets: number[];
 };
 
 export type Participant = {

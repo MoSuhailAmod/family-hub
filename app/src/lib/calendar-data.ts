@@ -82,7 +82,8 @@ export async function listEventCategories() {
         id,
         name,
         icon,
-        is_active AS "isActive"
+        is_active AS "isActive",
+        default_reminder_offsets AS "defaultReminderOffsets"
       FROM event_categories
       WHERE is_active = true
       ORDER BY name

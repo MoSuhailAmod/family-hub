@@ -7,7 +7,10 @@ import {
   eventFormValuesFromPersistedEvent,
   type EventFormValues,
 } from "@/lib/calendar-form";
-import { reminderPresetOptions } from "@/lib/calendar-reminders";
+import {
+  reminderOffsetsForCategorySelection,
+  reminderPresetOptions,
+} from "@/lib/calendar-reminders";
 import type { EventCategory, FamilyMember } from "@/lib/calendar-types";
 
 type PersistedEvent = {
@@ -120,6 +123,19 @@ export default function EditEventModal({
     );
   }
 
+  function selectCategory(categoryId: string | null) {
+    if (!form) return;
+    update(
+      "reminderOffsets",
+      reminderOffsetsForCategorySelection(
+        categories,
+        categoryId,
+        form.reminderOffsets ?? [],
+      ),
+    );
+    update("categoryId", categoryId);
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form) return;
@@ -229,7 +245,7 @@ export default function EditEventModal({
                 {reminderPresetOptions.map((reminder) => <label key={reminder.offsetMinutes} className="reminder-option"><input type="checkbox" checked={(form.reminderOffsets ?? []).includes(reminder.offsetMinutes)} onChange={() => toggleReminder(reminder.offsetMinutes)} />{reminder.label}</label>)}
               </div>
             </fieldset>
-            <label>Category<select value={form.categoryId ?? ""} onChange={(event) => update("categoryId", event.target.value || null)}><option value="">No category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+            <label>Category<select value={form.categoryId ?? ""} onChange={(event) => selectCategory(event.target.value || null)}><option value="">No category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
             <label>Location<input value={form.location} onChange={(event) => update("location", event.target.value)} /></label>
             <label>Notes<textarea rows={3} value={form.description} onChange={(event) => update("description", event.target.value)} /></label>
           </> : null}

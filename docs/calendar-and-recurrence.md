@@ -6,6 +6,10 @@ A calendar event has title, optional description/location/category, timezone-awa
 
 `app/src/lib/validation.ts` requires a non-empty title of at most 200 characters, valid ISO date/time values, `endAt > startAt`, UUID participants/categories where supplied, unique approved reminder offsets, and valid daily/weekly/monthly/yearly RRULEs. It normalizes a leading `RRULE:` prefix away, deduplicates participant IDs, and sorts reminder offsets.
 
+## Category notification profiles
+
+Each `event_categories` row carries a `default_reminder_offsets` array — its notification profile. `reminderOffsetsForCategorySelection` in `app/src/lib/calendar-reminders.ts` is called client-side (create and edit event modals) when the category select changes: if no reminders have been chosen yet, it fills in the selected category's default offsets; it never overwrites reminders that are already selected. This is a UI convenience only — the server accepts whatever `reminderOffsets` the client submits and does not itself look up or enforce a category's profile.
+
 The implementation interprets timestamps and calendar presentation using `Africa/Johannesburg` in the calendar UI. Clients should provide unambiguous ISO date/time values; all-day events remain stored with timestamps and are rendered with FullCalendar's all-day semantics.
 
 ## Recurrence

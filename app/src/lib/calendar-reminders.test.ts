@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { reminderOffsetsForCategorySelection } from "./calendar-reminders";
 import { expandEventForRange } from "./recurrence";
 import { parseEventInput } from "./validation";
 
@@ -18,11 +19,11 @@ test("defaults an absent reminder collection to no reminders and returns approve
 
   const withReminders = parseEventInput({
     ...eventInput,
-    reminderOffsets: [10080, 10, 60, 30, 1440],
+    reminderOffsets: [10080, 10, 60, 30, 2880, 1440],
   });
   assert.equal(withReminders.success, true);
   if (!withReminders.success) return;
-  assert.deepEqual(withReminders.data.reminderOffsets, [10, 30, 60, 1440, 10080]);
+  assert.deepEqual(withReminders.data.reminderOffsets, [10, 30, 60, 1440, 2880, 10080]);
 });
 
 test("rejects zero, negative, arbitrary, and duplicate reminder offsets", () => {
@@ -57,5 +58,40 @@ test("recurring occurrences retain the persisted series reminder metadata withou
   assert.deepEqual(
     occurrences.map((occurrence) => occurrence.reminderOffsets),
     [[10, 1440], [10, 1440]],
+  );
+});
+
+const categories = [
+  { id: "school", defaultReminderOffsets: [10080, 2880, 1440] },
+  { id: "appointment", defaultReminderOffsets: [1440] },
+  { id: "work", defaultReminderOffsets: [] },
+];
+
+test("fills in the selected category's default reminders when none are chosen yet", () => {
+  assert.deepEqual(
+    reminderOffsetsForCategorySelection(categories, "school", []),
+    [10080, 2880, 1440],
+  );
+});
+
+test("does not overwrite reminders the user has already selected", () => {
+  assert.deepEqual(
+    reminderOffsetsForCategorySelection(categories, "school", [10]),
+    [10],
+  );
+});
+
+test("clearing the category or picking an unprofiled category leaves reminders untouched", () => {
+  assert.deepEqual(
+    reminderOffsetsForCategorySelection(categories, null, []),
+    [],
+  );
+  assert.deepEqual(
+    reminderOffsetsForCategorySelection(categories, "work", []),
+    [],
+  );
+  assert.deepEqual(
+    reminderOffsetsForCategorySelection(categories, "unknown-category", []),
+    [],
   );
 });
