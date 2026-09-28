@@ -32,13 +32,13 @@ const members = [
 ];
 
 const categories = [
-  { name: "Family" },
-  { name: "School" },
-  { name: "Work" },
-  { name: "Medical" },
-  { name: "Birthday" },
-  { name: "Appointment" },
-  { name: "Holiday" },
+  { name: "Family", defaultReminderOffsets: [1440] },
+  { name: "School", defaultReminderOffsets: [10080, 2880, 1440] },
+  { name: "Work", defaultReminderOffsets: [60] },
+  { name: "Medical", defaultReminderOffsets: [1440] },
+  { name: "Birthday", defaultReminderOffsets: [10080, 1440] },
+  { name: "Appointment", defaultReminderOffsets: [1440] },
+  { name: "Holiday", defaultReminderOffsets: [10080] },
 ];
 
 async function seed() {

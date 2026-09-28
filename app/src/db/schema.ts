@@ -92,31 +92,47 @@ export const familyMembers = pgTable("family_members", {
     .notNull(),
 });
 
-export const eventCategories = pgTable("event_categories", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const eventCategories = pgTable(
+  "event_categories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
 
-  name: text("name")
-    .notNull()
-    .unique(),
+    name: text("name")
+      .notNull()
+      .unique(),
 
-  icon: text("icon"),
+    icon: text("icon"),
 
-  isActive: boolean("is_active")
-    .default(true)
-    .notNull(),
+    isActive: boolean("is_active")
+      .default(true)
+      .notNull(),
 
-  createdAt: timestamp("created_at", {
-    withTimezone: true,
-  })
-    .defaultNow()
-    .notNull(),
+    // The category's default notification profile: reminders auto-applied to
+    // a new event when this category is selected. Empty means no profile.
+    defaultReminderOffsets: integer("default_reminder_offsets")
+      .array()
+      .default(sql`ARRAY[]::integer[]`)
+      .notNull(),
 
-  updatedAt: timestamp("updated_at", {
-    withTimezone: true,
-  })
-    .defaultNow()
-    .notNull(),
-});
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "event_categories_default_reminder_offsets_check",
+      sql`${table.defaultReminderOffsets} <@ ARRAY[10, 30, 60, 1440, 2880, 10080]::integer[]`,
+    ),
+  ],
+);
 
 export const calendarEvents = pgTable("calendar_events", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -220,7 +236,7 @@ export const calendarEventReminders = pgTable(
     index("calendar_event_reminders_event_id_index").on(table.eventId),
     check(
       "calendar_event_reminders_offset_minutes_check",
-      sql`${table.offsetMinutes} in (10, 30, 60, 1440, 10080)`,
+      sql`${table.offsetMinutes} in (10, 30, 60, 1440, 2880, 10080)`,
     ),
   ],
 );

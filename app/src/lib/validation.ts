@@ -30,6 +30,7 @@ const reminderOffsetSchema = z.union(
     z.ZodLiteral<30>,
     z.ZodLiteral<60>,
     z.ZodLiteral<1440>,
+    z.ZodLiteral<2880>,
     z.ZodLiteral<10080>,
   ],
 );

@@ -18,10 +18,10 @@ erDiagram
 | Table | Purpose and key relationships |
 | --- | --- |
 | `family_members` | Household participants and display colour metadata; unique name and active flag. Not auth users. |
-| `event_categories` | Active/inactive named category metadata: unique name, optional icon. Categories carry no colour of their own. |
+| `event_categories` | Active/inactive named category metadata: unique name, optional icon, and a `default_reminder_offsets` array — the category's notification profile, auto-applied to a new event's reminders when that category is selected and no reminders have been chosen yet. Categories carry no colour of their own. |
 | `calendar_events` | Event payload, timestamptz start/end, all-day flag, optional location/category, and optional RRULE text. Category deletion sets `category_id` to null. |
 | `event_participants` | Calendar-event ↔ family-member many-to-many join with composite primary key; both references cascade on delete. |
-| `calendar_event_reminders` | Per-event reminder offsets. The database constrains offsets to 10, 30, 60, 1440, or 10080 minutes and prevents duplicate event/offset pairs. |
+| `calendar_event_reminders` | Per-event reminder offsets. The database constrains offsets to 10, 30, 60, 1440, 2880, or 10080 minutes and prevents duplicate event/offset pairs. `event_categories.default_reminder_offsets` is constrained to the same set. |
 | `notification_destinations` | Per-member provider targets; provider/target is unique. |
 | `notification_deliveries` | Durable delivery attempts for a reminder occurrence and destination; unique occurrence identity prevents duplicate deliveries. |
 

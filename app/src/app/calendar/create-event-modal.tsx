@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createEventPayload } from "@/lib/calendar-form";
-import { reminderPresetOptions } from "@/lib/calendar-reminders";
+import {
+  reminderOffsetsForCategorySelection,
+  reminderPresetOptions,
+} from "@/lib/calendar-reminders";
 import type { EventCategory, FamilyMember } from "@/lib/calendar-types";
 
 type Props = {
@@ -113,6 +116,18 @@ export default function CreateEventModal({
         ? form.reminderOffsets.filter((offset) => offset !== offsetMinutes)
         : [...form.reminderOffsets, offsetMinutes],
     );
+  }
+
+  function selectCategory(categoryId: string | null) {
+    setForm((current) => ({
+      ...current,
+      categoryId,
+      reminderOffsets: reminderOffsetsForCategorySelection(
+        categories,
+        categoryId,
+        current.reminderOffsets,
+      ),
+    }));
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -237,7 +252,7 @@ export default function CreateEventModal({
 
           <label>
             Category
-            <select value={form.categoryId ?? ""} onChange={(event) => update("categoryId", event.target.value || null)}>
+            <select value={form.categoryId ?? ""} onChange={(event) => selectCategory(event.target.value || null)}>
               <option value="">No category</option>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>

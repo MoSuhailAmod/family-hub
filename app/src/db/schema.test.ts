@@ -47,6 +47,34 @@ test("defines calendar reminder rules with an event-scoped preset offset", () =>
   ]);
 });
 
+test("defines event categories with a default reminder-offset notification profile", () => {
+  assertTableColumns("eventCategories", "event_categories", [
+    "createdAt",
+    "defaultReminderOffsets",
+    "icon",
+    "id",
+    "isActive",
+    "name",
+    "updatedAt",
+  ]);
+
+  assert.deepEqual(constraintNames(schema.eventCategories), {
+    checks: ["event_categories_default_reminder_offsets_check"],
+    indexes: [],
+  });
+
+  const defaultOffsetsCheck = getTableConfig(
+    schema.eventCategories,
+  ).checks.find(
+    (check) => check.name === "event_categories_default_reminder_offsets_check",
+  );
+  assert.ok(defaultOffsetsCheck);
+  assert.match(
+    new PgDialect().sqlToQuery(defaultOffsetsCheck.value).sql,
+    /<@ ARRAY\[10, 30, 60, 1440, 2880, 10080\]/,
+  );
+});
+
 test("defines multiple provider destinations per family member", () => {
   assertTableColumns("notificationDestinations", "notification_destinations", [
     "createdAt",
@@ -347,6 +375,6 @@ test("defines required notification constraints and idempotency indexes", () => 
   assert.ok(reminderOffsetCheck);
   assert.match(
     new PgDialect().sqlToQuery(reminderOffsetCheck.value).sql,
-    /\(10, 30, 60, 1440, 10080\)$/,
+    /\(10, 30, 60, 1440, 2880, 10080\)$/,
   );
 });

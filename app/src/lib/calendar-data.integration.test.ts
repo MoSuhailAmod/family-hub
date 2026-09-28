@@ -128,3 +128,27 @@ test("retains one reminder set for every projected recurrence occurrence", async
   );
   assert.deepEqual(reminders.rows, [{ count: "2" }]);
 });
+
+test("lists a category's default reminder-offset notification profile", async () => {
+  const { listEventCategories } = await import("./calendar-data");
+
+  await client.query(
+    `
+      insert into event_categories (name, default_reminder_offsets)
+      values ('School', ARRAY[10080, 2880, 1440]), ('Work', ARRAY[]::integer[])
+    `,
+  );
+
+  const categories = await listEventCategories();
+
+  assert.deepEqual(
+    categories.map((category) => ({
+      name: category.name,
+      defaultReminderOffsets: category.defaultReminderOffsets,
+    })),
+    [
+      { name: "School", defaultReminderOffsets: [10080, 2880, 1440] },
+      { name: "Work", defaultReminderOffsets: [] },
+    ],
+  );
+});
